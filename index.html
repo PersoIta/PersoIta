@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <title>PersoIta</title>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="initial-scale=1.0, width=device-width" />
+</head>
+<body>
+    <div class="popup-overlay" id="popup-overlay"></div>
+    <div class="corpo">
+        <div class="header">
+            <img src="./img/logo.jpeg" alt="imagem" height="200px" width="400px">
+        </div>
+        <nav class="sub_menu">
+            <ul id="menu_horizontal">
+                <li><a href="index.html">Produtos</a></li>
+                <li><a href="contato.html">Contato</a></li>
+            </ul>
+        </nav>
+        <h2 class="subtitulo">Canecas</h2>
+        <div class="visualizacao" id="card-torta-palito" >
+            <div class="card">
+                <img src="./img/branca_porce.jpeg">
+                <div>
+                  <h1>Caneca de Polímero Branca</h1>
+                  <button onclick="abrirModal()" class="btn">Saiba Mais</button>
+                </div>
+            </div>
+            <div class="card">
+                <img src="./img/branca_porce.jpeg">
+                <div>
+                  <h1>Caneca de Porcelana Branca</h1>
+                  <button onclick="abrirModal1()" class="btn">Saiba Mais</button>
+                </div>
+            </div>
+            <div class="card">
+                <img src="./img/rosa.jpeg">
+                <div>
+                  <h1>Caneca de Porcelana de Alça e Interior Rosa</h1>
+                  <button onclick="abrirModal2()" class="btn">Saiba Mais</button>
+                </div>
+            </div>
+            <div class="card">
+                <img src="./img/azul.jpeg">
+                <div>
+                  <h1>Caneca de Porcelana de Alça e Interior Azul   </h1>
+                  <button onclick="abrirModal3()" class="btn">Saiba Mais</button>
+                </div>
+            </div>
+            <div class="card">
+                <img src="./img/preta.jpeg">
+                <div>
+                  <h1>Caneca de Porcelana de Alça e Interior Preta</h1>
+                  <button onclick="abrirModal4()" class="btn">Saiba Mais</button>
+                </div>
+            </div>
+            <div class="card">
+                <img src="./img/torta2.jpeg">
+                <div>
+                  <h1>Maracujá e Chocolate</h1>
+                  <button onclick="abrirModal5()" class="btn">Saiba Mais</button>
+                </div>
+            </div>
+        </div>
+        <h2 class="subtitulo">Camisas</h2>
+        <div class="visualizacao" id="vitrine">
+            <div class="card">
+                <img src="./img/torta3.jpeg">
+                <div>
+                  <h1>Cheesecake</h1>
+                  <button onclick="abrirModal6()" class="btn">Saiba Mais</button>
+                </div>
+            </div>
+            <div class="card">
+                <img src="./img/torta4.jpeg">
+                <div>
+                  <h1>Holandesa</h1>
+                  <button onclick="abrirModal7()" class="btn">Saiba Mais</button>
+                </div>
+            </div>
+            <div class="card">
+                <img src="./img/torta5.jpeg">
+                <div>
+                  <h1>Oreo e Chocolate</h1>
+                  <button onclick="abrirModal8()" class="btn">Saiba Mais</button>
+                </div>
+            </div>
+        </div>
+        <h2 class="subtitulo">Chaveiro</h2>
+        <div class="visualizacao" id="copo">
+            <div class="card">
+                <img src="./img/copo1.jpeg">
+                <div>
+                  <h1>Ninho com Morango e Nutela</h1>
+                  <button onclick="abrirModal9()" class="btn">Saiba Mais</button>
+                </div>
+            </div>
+            <div class="card">
+                <img src="./img/copo2.jpeg">
+                <div>
+                  <h1>Brownie Twix</h1>
+                  <button onclick="abrir1Modal()" class="btn">Saiba Mais</button>
+                </div>
+            </div>
+            <div class="card">
+                <img src="./img/copo3.jpeg">
+                <div>
+                  <h1>Ninho com Morango e Chantili</h1>
+                  <button onclick="abrir2Modal()" class="btn">Saiba Mais</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="pop-up">
+        <div class="centralizado">
+            <div class="janela-modal" id="janela-modal">
+                <div class="centralizado" id="modal" class="visualização_modal">
+                    <button class="fechar" id="fechar">X</button>
+                    <h1>Caneca de Polímero Branca de 325ml</h1>
+                    <p>
+                        A caneca de polímero branca personalizada é uma opção versátil e encantadora para presentear ou para uso pessoal. Feita de um material leve e resistente, o polímero oferece durabilidade e facilidade de manuseio no dia a dia. Sua cor branca proporciona um fundo neutro perfeito para destacar as personalizações escolhidas.
+                    </p>
+                    <p>
+                        Você pode personalizar essa caneca de diversas maneiras, transformando-a em um objeto único e especial. Adicionar fotos permite que você eternize momentos memoráveis, como viagens, eventos especiais ou fotos de família. Inserir frases ou citações favoritas possibilita criar um ambiente acolhedor e inspirador a cada gole de café ou chá.
+                    </p>
+                    <p>
+                        Por ser feita de polímero, essa caneca não só é resistente a quedas e impactos, mas também é fácil de limpar e pode ser levada ao micro-ondas sem preocupações. Sua leveza a torna prática para ser transportada, seja no escritório, em viagens ou em casa.
+                    </p>
+                    <p class="preco">Por apenas: R$ 35,00</p>
+                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20caneca%20de%20pol%C3%ADmero%20branca%20e%20fazer%20o%20pedido.">Entre em contato pelo Whatsapp</a>
+                </div>
+            </div>
+            <div class="janela-modal1" id="janela-modal1">
+                <div class="centralizado" id="modal1" class="visualização_modal">
+                    <button class="fechar1" id="fechar1">X</button>
+                    <h1>Caneca de Porcelana Branca de 325ml</h1>
+                    <p>
+                        Dê um toque de personalidade aos seus momentos de café com a nossa caneca de porcelana personalizada de 325ml. Feita com porcelana de alta qualidade, esta caneca é a escolha perfeita para quem busca qualidade, durabilidade e estilo.
+                    </p>
+                    <p>
+                        Apresentando um design clássico e elegante, esta caneca branca é o cenário perfeito para a sua criatividade. Com a possibilidade de personalização, você pode transformá-la em uma peça única, adicionando fotos, frases motivadoras, nomes, desenhos ou qualquer outra imagem que deseje.
+                    </p>
+                    <p>
+                        Seja para presentear alguém especial com uma lembrança única e personalizada, ou para adicionar um toque único à sua coleção de canecas, esta é a escolha ideal.
+                    </p>
+                    <p class="preco">Por apenas: R$ 40,00</p>
+                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20caneca%20de%20porcelana%20branca%20e%20fazer%20o%20pedido.">Entre em Contato pelo Whatsapp</a>
+                </div>
+            </div>
+            <div class="janela-modal2" id="janela-modal2">
+                <div class="centralizado" id="modal2" class="visualização_modal">
+                    <button class="fechar2" id="fechar2">X</button>
+                    <h1>Caneca de Porcelana de Alça e Interior Rosa</h1>
+                    <p>
+                        Esta encantadora caneca apresenta um interior em rosa suave, adicionando um toque de delicadeza a cada gole. Feita com porcelana de alta qualidade, ela é durável e resistente, ideal para uso diário.
+                    </p>
+                    <p>
+                        O que torna esta caneca verdadeiramente única é a sua capacidade de ser personalizada de acordo com o seu gosto. Deixe sua criatividade fluir e escolha entre frases motivacionais, nomes, trechos de músicas, desenhos, fotos e muito mais. Seja para presentear alguém especial ou simplesmente para adicionar um toque pessoal à sua rotina, esta caneca é a escolha perfeita.
+                    </p>
+                    <p class="preco">Por apenas: R$ 45,00</p>
+                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20caneca%20de%20porcelana%20de%20al%C3%A7a%20e%20interior%20rosa%20e%20fazer%20o%20pedido.">Entre em Contato pelo Whatsapp</a>
+                </div>
+            </div>
+            <div class="janela-modal3" id="janela-modal3">
+                <div class="centralizado" id="modal3" class="visualização_modal">
+                    <button class="fechar3" id="fechar3">X</button>
+                    <h1>Caneca de Porcelana de Alça e Interior Azul</h1>
+                    <p>
+                        A caneca de porcelana com alça e interior azul personalizada é uma peça elegante e charmosa que combina funcionalidade com um toque pessoal. Feita com porcelana de alta qualidade, oferece uma superfície lisa e brilhante que realça qualquer personalização escolhida.   
+                    </p>
+                    <p>
+                        Você tem a liberdade de personalizar essa caneca de diversas maneiras. Incluir fotos permite que você transforme a caneca em uma galeria de momentos especiais, seja com fotos de família, de viagens inesquecíveis ou de eventos marcantes. Adicionar frases ou citações favoritas pode trazer inspiração e positividade ao seu dia a dia, tornando cada momento de uso da caneca mais significativo.
+                    </p>
+                    <p>
+                        Em resumo, a caneca de porcelana com alça e interior azul personalizada é uma escolha refinada para quem busca combinar estilo, funcionalidade e personalização. Seja para presentear alguém especial ou para uso próprio, essa caneca se destaca como um objeto de valor sentimental e estético.
+                    </p>
+                    <p class="preco">Por apenas: R$ 45,00</p>
+                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20caneca%20de%20porcelana%20de%20al%C3%A7a%20e%20interior%20azul%20e%20fazer%20o%20pedido.">Entre em Contato pelo Whatsapp</a>
+                </div>
+            </div>
+            <div class="janela-modal4" id="janela-modal4">
+                <div class="centralizado" id="modal4" class="visualização_modal">
+                    <button class="fechar4" id="fechar4">X</button>
+                    <h1>Caneca de Porcelana de Alça e Interior Preta</h1>
+                    <p>
+                        A caneca de porcelana com alça e interior preta personalizada é uma peça sofisticada e versátil, ideal para quem busca combinar elegância com personalização criativa. Feita com porcelana de alta qualidade, ela apresenta uma superfície lisa e brilhante que proporciona um excelente acabamento para as personalizações escolhidas.
+                    </p>
+                    <p>
+                        A opção de incluir nomes, datas importantes ou até mesmo logotipos faz dessa caneca um presente personalizado perfeito para aniversários, casamentos, formaturas e outras ocasiões especiais. Essa personalização não apenas torna a caneca única, mas também a transforma em um objeto de valor sentimental que pode ser apreciado diariamente
+                    </p>
+                    <p>
+                        Além do apelo estético e sentimental, a caneca de porcelana é prática e fácil de cuidar. Sua superfície é resistente a arranhões e pode ser lavada à mão ou na lava-louças, garantindo durabilidade e conveniência no uso diário. O interior preto cria um contraste elegante que se destaca cada vez que você desfruta de sua bebida favorita, seja café pela manhã ou chá à tarde.
+                    </p>
+                    <p class="preco">Por apenas: R$ 45,00</p>
+                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20caneca%20de%20porcelana%20de%20al%C3%A7a%20e%20interior%20preta%20e%20fazer%20o%20pedido.">Entre em Contato pelo Whatsapp</a>
+                </div>
+            </div>
+            <div class="janela-modal5" id="janela-modal5" class="visualização_modal">
+                <div class="centralizado" id="modal5">
+                    <button class="fechar5" id="fechar5">X</button>
+                    <h1>Maracujá e Chocolate</h1>
+                    <p>
+                        A 'Maracujá e Chocolate' é uma torta de vitrine especialmente concebida para os verdadeiros apreciadores da harmoniosa união entre o chocolate e o maracujá. Esta delícia é meticulosamente montada em camadas, começando com uma crocante base de biscoito amanteigado. Em seguida, uma suave mousse de chocolate amargo adiciona um toque sofisticado, contrastando perfeitamente com a refrescante mousse de maracujá. E para finalizar, uma camada de vibrante geleia de maracujá é cuidadosamente aplicada, coroando este delicioso deleite com um toque cítrico e ligeiramente doce.
+                    </p>
+                    <a href="https://api.whatsapp.com/send?phone=5531980249998&text=Ol%C3%A1,%20me%20interessei%20pelo%20produto%20e%20gostaria%20de%20fazer%20o%20pedido%20da%20Torta%20de%20Vitrine%20de%20sabor%20Maracuj%C3%A1%20e%20Chocolate.">Entre em Contato pelo Whatsapp</a>
+                </div>
+            </div>
+            <div class="janela-modal6" id="janela-modal6">
+                <div class="centralizado" id="modal6" class="visualização_modal">
+                    <button class="fechar6" id="fechar6">X</button>
+                    <h1>Cheesecake</h1>
+                    <p>
+                        Apresentamos a nossa Cheesecake, a queridinha por todos! Esta sobremesa é uma delícia irrepreensível, extremamente cremosa e delicada. A sua composição inicia-se com uma base de biscoito amanteigado, seguida pelo nosso creme Cheesecake excepcionalmente suave. O toque final fica por conta da geleia de morango ou frutas vermelhas, adicionando uma explosão de frescor a cada mordida. Não perca a oportunidade de experimentar e se deliciar com o sabor incrível desta sobremesa de vitrine. Garantimos um deleite para o seu paladar!
+                    </p>
+                    <a href="https://api.whatsapp.com/send?phone=5531980249998&text=Ol%C3%A1,%20me%20interessei%20pelo%20produto%20e%20gostaria%20de%20fazer%20o%20pedido%20da%20Torta%20de%20Vitrine%20de%20sabor%20Cheesecake.">Entre em Contato pelo Whatsapp</a>
+                </div>
+            </div>
+            <div class="janela-modal7" id="janela-modal7">
+                <div class="centralizado" id="modal7" class="visualização_modal">
+                    <button class="fechar7" id="fechar7">X</button>
+                    <h1>Holandesa</h1>
+                    <p>
+                        A 'Holandesa' é uma torta de vitrine tradicional e requintada, encantadoramente composta por um creme delicado e absolutamente irresistível. Sua base, feita com um biscoito amanteigado, confere uma textura incomparável que complementa a suavidade do creme. O grand finale é a incrível ganache de chocolate, que enriquece o sabor do prato e adiciona um toque extra de sofisticação e luxo. Uma verdadeira tentação que conquista todos os paladares com sua combinação surpreendentemente harmoniosa e ousada.
+                    </p>
+                    <a href="https://api.whatsapp.com/send?phone=5531980249998&text=Ol%C3%A1,%20me%20interessei%20pelo%20produto%20e%20gostaria%20de%20fazer%20o%20pedido%20da%20Torta%20de%20Vitrine%20de%20sabor%20Holandesa.">Entre em Contato pelo Whatsapp</a>
+                </div>
+            </div>
+            <div class="janela-modal8" id="janela-modal8">
+                <div class="centralizado" id="modal8" class="visualização_modal">
+                    <button class="fechar8" id="fechar8">X</button>
+                    <h1>Oreo e Chocolate</h1>
+                    <p>
+                        Essa torta e para os amantes do Oreo. Composto por um base de biscoito Oreo, uma Mousse leve e deliciosa de chocolate amargo pra deixar um sabor equilibrado, uma Mousse de Oreo super cremoso e finalizada com ganache
+                    </p>
+                    <a href="https://api.whatsapp.com/send?phone=5531980249998&text=Ol%C3%A1,%20me%20interessei%20pelo%20produto%20e%20gostaria%20de%20fazer%20o%20pedido%20da%20Torta%20de%20Vitrine%20de%20sabor%20Oreo%20e%20Chocolate.">Entre em Contato pelo Whatsapp</a>
+                </div>
+            </div>
+            <div class="janela-modal9" id="janela-modal9">
+                <div class="centralizado" id="modal9" class="visualização_modal">
+                    <button class="fechar9" id="fechar9">X</button>
+                    <h1>Ninho com Morango e Nutela</h1>
+                    <p>
+                        O Copo da Felicidade é uma sobremesa divinamente irresistível, montada meticulosamente com uma combinação harmoniosa de ingredientes selecionados. O sabor doce e refrescante do morango, aliado ao creme de Ninho de textura aveludada e sabor inconfundivelmente delicioso, se entrelaça perfeitamente com pedaços generosos de brownie, rico e decadente. Para finalizar, uma camada de Nutella, cremosa e indulgente, é adicionada, proporcionando uma experiência de sabor verdadeiramente prazerosa e inesquecível. Um deleite para os amantes de doces!
+                    </p>
+                    <a href="https://api.whatsapp.com/send?phone=5531980249998&text=Ol%C3%A1,%20me%20interessei%20pelo%20produto%20e%20gostaria%20de%20fazer%20o%20pedido%20do%20Copo%20da%20Felicidade%20sabor%20Ninho%20com%20Morango%20e%20Nutela.">Entre em Contato pelo Whatsapp</a>
+                </div>
+            </div>
+            <div class="janela-modal10" id="janela-modal10">
+                <div class="centralizado" id="modal10" class="visualização_modal">
+                    <button class="fechar10" id="fechar10">X</button>
+                    <h1>Brownie Twix</h1>
+                    <p>
+                        Apresentamos o nosso 'Brownie Twix', a estrela da categoria 'Copo da Felicidade'. Este é um prato que promete uma verdadeira aventura gastronômica. Inicia-se com uma sedutora camada de creme de caramelo, tão cremoso que derrete na boca. Em seguida, surge o nosso inigualável Brigadeiro, preparado com uma cremosidade irresistível que encanta a todos. Por último, mas não menos importante, o nosso Brownie perfeitamente assado, cuja textura e sabor são absolutamente inconfundíveis. É uma combinação tão deliciosa e única que só experimentando para entender toda a sua grandiosidade. Prepare-se para uma experiência de sabor inesquecível!
+                    </p>
+                    <a href="https://api.whatsapp.com/send?phone=5531980249998&text=Ol%C3%A1,%20me%20interessei%20pelo%20produto%20e%20gostaria%20de%20fazer%20o%20pedido%20do%20Copo%20da%20Felicidade%20sabor%20Brownie%20Twix.">Entre em Contato pelo Whatsapp</a>
+                </div>
+            </div>
+            <div class="janela-modal11" id="janela-modal11">
+                <div class="centralizado" id="modal11" class="visualização_modal">
+                    <button class="fechar11" id="fechar11">X</button>
+                    <h1>Ninho com Morango e Chantili</h1>
+                    <p>
+                        Esse copo é uma Deliciosa de sabor montado com camadas de Morango, crumble crocante (biscoito artesanal ) creme de Ninho cremoso e chantininho
+                    </p>
+                    <a href="https://api.whatsapp.com/send?phone=5531980249998&text=Ol%C3%A1,%20me%20interessei%20pelo%20produto%20e%20gostaria%20de%20fazer%20o%20pedido%20do%20Copo%20da%20Felicidade%20sabor%20Ninho%20com%20Morango%20e%20Chantili.">Entre em Contato pelo Whatsapp</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+
+</body>
+</html>
