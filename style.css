@@ -20,7 +20,7 @@ body {
     font-family: "Arial";
     gap:16px;
 }
-@media screen and (max-width: 1800px) {
+@media screen and (max-width: 1900px) {
     .visualizacao {
         flex-wrap: wrap;
     }
