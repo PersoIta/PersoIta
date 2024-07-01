@@ -113,3 +113,39 @@ function abrir2Modal (){
         modal.classList.remove('abrir11')
     })
 }
+function abrir3Modal (){
+    const modal = document.getElementById('janela-modal12')
+    modal.classList.add('abrir12')
+
+    modal.addEventListener('click', (e) => {
+        if(e.target.id == 'fechar12' || e.target.id == 'janela-modal12')
+        modal.classList.remove('abrir12')
+    })
+}
+function abrir4Modal (){
+    const modal = document.getElementById('janela-modal13')
+    modal.classList.add('abrir13')
+
+    modal.addEventListener('click', (e) => {
+        if(e.target.id == 'fechar13' || e.target.id == 'janela-modal13')
+        modal.classList.remove('abrir13')
+    })
+}
+function abrir5Modal (){
+    const modal = document.getElementById('janela-modal14')
+    modal.classList.add('abrir14')
+
+    modal.addEventListener('click', (e) => {
+        if(e.target.id == 'fechar14' || e.target.id == 'janela-modal14')
+        modal.classList.remove('abrir14')
+    })
+}
+function abrir6Modal (){
+    const modal = document.getElementById('janela-modal15')
+    modal.classList.add('abrir15')
+
+    modal.addEventListener('click', (e) => {
+        if(e.target.id == 'fechar15' || e.target.id == 'janela-modal15')
+        modal.classList.remove('abrir15')
+    })
+}
