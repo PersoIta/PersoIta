@@ -20,7 +20,7 @@ body {
     font-family: "Arial";
     gap:16px;
 }
-@media screen and (max-width: 900px) {
+@media screen and (max-width: 1800px) {
     .visualizacao {
         flex-wrap: wrap;
     }
@@ -148,7 +148,7 @@ body {
 .card {
     background-color: #fff;
     width: 180px;
-    height: 300px;
+    height: 320px;
     border-radius: 12px;
     box-shadow: 4px 4px 12px #aaaa;
 }
