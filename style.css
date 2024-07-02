@@ -76,6 +76,13 @@ body {
     gap:16px;
     margin-top: 1px;
 }
+.Lista-artes a {
+    text-decoration: none;
+    color: black;
+    list-style: none;
+    padding: 0;
+    font-size: 20px;
+}
 #menu_horizontal {
     list-style: none;
     padding: 0;
@@ -135,14 +142,14 @@ body {
 .preco {
     color: red;
     font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
-    font-size: 24px;
+    font-size: 22px;
 }
 .tamanho {
     color: blue;
-    font-size: 25px;
+    font-size: 21px;
 }
 .centralizado h1 {
-    font-size: 24px;
+    font-size: 23px;
 }
 .card {
     background-color: #fff;
