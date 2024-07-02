@@ -149,3 +149,48 @@ function abrir6Modal (){
         modal.classList.remove('abrir15')
     })
 }
+function abrir7Modal (){
+    const modal = document.getElementById('janela-modal16')
+    modal.classList.add('abrir16')
+
+    modal.addEventListener('click', (e) => {
+        if(e.target.id == 'fechar16' || e.target.id == 'janela-modal16')
+        modal.classList.remove('abrir16')
+    })
+}
+function abrir8Modal (){
+    const modal = document.getElementById('janela-modal17')
+    modal.classList.add('abrir17')
+
+    modal.addEventListener('click', (e) => {
+        if(e.target.id == 'fechar17' || e.target.id == 'janela-modal17')
+        modal.classList.remove('abrir17')
+    })
+}
+function abrir9Modal (){
+    const modal = document.getElementById('janela-modal18')
+    modal.classList.add('abrir18')
+
+    modal.addEventListener('click', (e) => {
+        if(e.target.id == 'fechar18' || e.target.id == 'janela-modal18')
+        modal.classList.remove('abrir18')
+    })
+}
+function abrir10Modal (){
+    const modal = document.getElementById('janela-modal19')
+    modal.classList.add('abrir19')
+
+    modal.addEventListener('click', (e) => {
+        if(e.target.id == 'fechar19' || e.target.id == 'janela-modal19')
+        modal.classList.remove('abrir19')
+    })
+}
+function abrir11Modal (){
+    const modal = document.getElementById('janela-modal20')
+    modal.classList.add('abrir20')
+
+    modal.addEventListener('click', (e) => {
+        if(e.target.id == 'fechar20' || e.target.id == 'janela-modal20')
+        modal.classList.remove('abrir20')
+    })
+}
