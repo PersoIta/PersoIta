@@ -12,6 +12,163 @@ let selectedVariation = null;
 
 let selectedQuantity = 1;
 
+/*
+ * Hierarquia de tamanhos por letras.
+ * Quanto menor o número, mais cedo aparece.
+ */
+const VARIATION_SIZE_ORDER = {
+  "PP": 1,
+  "P": 2,
+  "M": 3,
+  "G": 4,
+  "GG": 5,
+  "XG": 5,
+  "EG": 5,
+  "G1": 6,
+  "XGG": 6,
+  "G2": 7,
+  "G3": 8,
+  "G4": 9,
+  "G5": 10,
+  "G6": 11
+};
+
+/*
+ * Extrai o "token" que representa o tamanho/numeração
+ * do final do nome da variação.
+ *
+ * Exemplos:
+ *   "Branco Gola Redonda - GG"  -> "GG"
+ *   "Branco Gola Redonda G2"    -> "G2"
+ *   "Branco 4"                  -> "4"
+ *   "Branco 12"                 -> "12"
+ *   "Azul"                      -> ""  (não reconhece)
+ */
+function extractVariationSizeToken(nome) {
+  const s = String(nome || "").trim();
+
+  if (!s) {
+    return "";
+  }
+
+  const match = s.match(/[\s\-\/]+([A-Za-z]+\d*|\d+)$/);
+
+  if (match) {
+    return match[1];
+  }
+
+  return "";
+}
+
+/*
+ * Extrai a "base" do nome da variação: tudo antes do
+ * token de tamanho. Essa base é usada para agrupar
+ * variações da mesma cor/modelo.
+ *
+ * Exemplos:
+ *   "Branco Gola Redonda - GG"  -> "branco gola redonda"
+ *   "Branco 4"                  -> "branco"
+ *   "Cinza 5"                   -> "cinza"
+ *   "Azul"                      -> "azul"
+ */
+function extractVariationBase(nome) {
+  const s = String(nome || "").trim();
+
+  if (!s) {
+    return "";
+  }
+
+  const base = s.replace(/[\s\-\/]+([A-Za-z]+\d*|\d+)$/, "").trim();
+
+  return (base || s).toLowerCase();
+}
+
+/*
+ * Gera uma chave de ordenação para uma variação:
+ *   base:     texto "cor/modelo" (para agrupar)
+ *   group:    0 = letras (P, M, G...), 1 = números, 2 = outros
+ *   rank:     valor numérico para desempate dentro do grupo
+ *   original: nome completo em minúsculas
+ */
+function variationSortKey(nome) {
+  const token = extractVariationSizeToken(nome).toUpperCase();
+
+  const base = extractVariationBase(nome);
+
+  const original = String(nome || "").toLowerCase();
+
+  let group = 2;
+  let rank = 0;
+
+  if (
+    token &&
+    Object.prototype.hasOwnProperty.call(
+      VARIATION_SIZE_ORDER,
+      token
+    )
+  ) {
+    group = 0;
+    rank = VARIATION_SIZE_ORDER[token];
+  } else if (token && /^\d+$/.test(token)) {
+    group = 1;
+    rank = Number(token);
+  }
+
+  return {
+    base: base,
+    group: group,
+    rank: rank,
+    original: original
+  };
+}
+
+/*
+ * Comparador usado pelo Array.sort().
+ *
+ * Ordem final:
+ *   1) Cor / modelo (base do nome)
+ *   2) Grupo (letras / números / outros)
+ *   3) Posição do tamanho (P, M, G, GG... ou 4, 5, 6...)
+ *   4) Nome completo (alfabético, como desempate final)
+ */
+function compareVariations(a, b) {
+  const ka = variationSortKey(a?.nome);
+  const kb = variationSortKey(b?.nome);
+
+  if (ka.base !== kb.base) {
+    return ka.base.localeCompare(
+      kb.base,
+      "pt-BR",
+      { sensitivity: "base" }
+    );
+  }
+
+  if (ka.group !== kb.group) {
+    return ka.group - kb.group;
+  }
+
+  if (ka.rank !== kb.rank) {
+    return ka.rank - kb.rank;
+  }
+
+  return ka.original.localeCompare(
+    kb.original,
+    "pt-BR",
+    { sensitivity: "base" }
+  );
+}
+
+/*
+ * Retorna uma cópia da lista de variações ordenada.
+ */
+function sortVariations(list) {
+  if (!Array.isArray(list)) {
+    return [];
+  }
+
+  return [...list].sort(compareVariations);
+}
+
 async function getCatalogStoreId() {
   const params = new URLSearchParams(
     window.location.search
@@ -89,22 +246,55 @@ async function setupCatalogAccess() {
     if (session) {
       /*
        * Visitante autenticado (dono da loja / equipe):
-       * mostra o menu e carrega o contexto do usuário.
+       * define currentUser ANTES de qualquer chamada.
        */
+      currentUser = session.user;
+
       if (menu) {
         menu.style.display = "";
       }
 
-      if (
-        typeof loadMenu === "function"
-      ) {
-        await loadMenu();
+      /*
+       * Cada bloco do menu tem try/catch próprio pra que
+       * uma falha no menu NÃO impeça o catálogo de carregar.
+       */
+      try {
+        if (
+          typeof loadMenu === "function"
+        ) {
+          await loadMenu();
+        }
+      } catch (menuError) {
+        console.warn(
+          "Falha ao carregar menu (não bloqueia o catálogo):",
+          menuError
+        );
       }
 
-      if (
-        typeof loadUserContext === "function"
-      ) {
-        await loadUserContext();
+      try {
+        if (
+          typeof loadUserContext === "function"
+        ) {
+          await loadUserContext();
+        }
+      } catch (contextError) {
+        console.warn(
+          "Falha ao carregar contexto (não bloqueia o catálogo):",
+          contextError
+        );
+      }
+
+      try {
+        if (
+          typeof setActiveNav === "function"
+        ) {
+          setActiveNav();
+        }
+      } catch (navError) {
+        console.warn(
+          "Falha ao marcar nav ativo:",
+          navError
+        );
       }
     } else {
       /*
@@ -219,6 +409,18 @@ async function loadCatalog() {
         ? data.produtos
         : [];
 
+    /*
+     * Ordena as variações de cada produto:
+     *   1) Cor/modelo (base do nome)
+     *   2) Tamanho (P, M, G, GG, G1... ou 4, 5, 6...)
+     */
+    catalogProducts.forEach(product => {
+      if (Array.isArray(product.variacoes)) {
+        product.variacoes =
+          sortVariations(product.variacoes);
+      }
+    });
+
     if (!catalogStore) {
       showCatalogMessage(
         "Os dados da loja não foram encontrados."
@@ -253,14 +455,48 @@ function renderStore() {
     catalogStore.nome ||
     "Catálogo";
 
-  const element =
+  const logoUrl =
+    catalogStore.logo ||
+    catalogStore.logo_url ||
+    catalogStore.imagem_logo ||
+    catalogStore.url_logo ||
+    "";
+
+  /* Nome da loja */
+  const nameElement =
     document.getElementById(
       "catalogStoreName"
     );
 
-  if (element) {
-    element.textContent =
+  if (nameElement) {
+    nameElement.textContent =
       storeName;
+  }
+
+  /* Logo da loja — aparece ao lado do nome */
+  const logoContainer =
+    document.getElementById(
+      "catalogStoreLogo"
+    );
+
+  if (logoContainer) {
+    if (logoUrl) {
+      logoContainer.innerHTML = `
+        <img
+          src="${escapeHtml(logoUrl)}"
+          alt="${escapeHtml(storeName)}"
+          class="catalog-store-logo-image"
+          onerror="this.parentElement.style.display='none';"
+        >
+      `;
+
+      logoContainer.style.display =
+        "flex";
+    } else {
+      logoContainer.innerHTML = "";
+      logoContainer.style.display =
+        "none";
+    }
   }
 
   document.title =
@@ -469,11 +705,14 @@ function openProduct(productId) {
     product.nome ||
     "Produto";
 
+  /*
+   * Reforça a ordenação em runtime, garantindo que
+   * mesmo que algo mude depois do loadCatalog, a lista
+   * apareça agrupada por cor e por tamanho.
+   */
   const variations =
-    Array.isArray(
-      product.variacoes
-    )
-      ? product.variacoes
+    Array.isArray(product.variacoes)
+      ? sortVariations(product.variacoes)
       : [];
 
   const mainImage =

@@ -33,10 +33,6 @@
 
         <div class="user-info">
 
-          <strong id="userName">
-            Usuário
-          </strong>
-
           <br>
 
           <span id="userEmail"></span>
@@ -105,6 +101,48 @@
 
     let products = [];
     let categories = [];
+
+    /*
+     * Gera um SKU único no formato:
+     *   SKU-YYYYMMDDHHMMSS-XXX
+     * Ex.: SKU-20251008143022-472
+     */
+    function generateSku() {
+      const now = new Date();
+
+      const y = now.getFullYear();
+
+      const m = String(
+        now.getMonth() + 1
+      ).padStart(2, "0");
+
+      const d = String(
+        now.getDate()
+      ).padStart(2, "0");
+
+      const h = String(
+        now.getHours()
+      ).padStart(2, "0");
+
+      const mi = String(
+        now.getMinutes()
+      ).padStart(2, "0");
+
+      const s = String(
+        now.getSeconds()
+      ).padStart(2, "0");
+
+      const random = String(
+        Math.floor(Math.random() * 1000)
+      ).padStart(3, "0");
+
+      return (
+        "SKU-" +
+        y + m + d + h + mi + s +
+        "-" +
+        random
+      );
+    }
 
     async function loadCategories() {
 
@@ -369,11 +407,11 @@
             <label>SKU</label>
 
             <input
-              value="${
-                p.sku
-                  ? escapeHtml(p.sku)
-                  : "Gerado automaticamente"
-              }"
+              id="p_sku"
+              value="${escapeHtml(
+                p.sku ||
+                "Gerado automaticamente"
+              )}"
               readonly>
 
             <small class="muted">
@@ -639,10 +677,38 @@
         return;
       }
 
+      const skuInput =
+        $("p_sku");
+
+      /*
+       * Em edição: reaproveita o SKU atual.
+       * Em cadastro novo: gera um SKU novo.
+       */
+      let sku;
+
+      if (id) {
+
+        sku =
+          skuInput &&
+          skuInput.value &&
+          skuInput.value !==
+            "Gerado automaticamente"
+            ? skuInput.value.trim()
+            : generateSku();
+
+      } else {
+
+        sku = generateSku();
+
+      }
+
       const payload = {
 
         id_loja:
           currentStore.id_loja,
+
+        sku:
+          sku,
 
         nome:
           $("p_nome")
@@ -698,6 +764,11 @@
 
       };
 
+      console.log(
+        "Salvando produto:",
+        payload
+      );
+
       let result;
 
       if (id) {
@@ -727,7 +798,9 @@
         );
 
         alert(
-          result.error.message
+          "Erro ao salvar produto:\n\n" +
+          (result.error.message ||
+            "Erro desconhecido.")
         );
 
         return;

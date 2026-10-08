@@ -3680,11 +3680,8 @@ async function generateQuotePDF(
 document.addEventListener(
   "DOMContentLoaded",
   async function() {
-
     try {
-
-      const authenticated =
-        await requireAuth();
+      const authenticated = await requireAuth();
 
       if (!authenticated) {
         return;
@@ -3694,11 +3691,23 @@ document.addEventListener(
         return;
       }
 
-      const contextLoaded =
-        await loadUserContext();
+      const contextLoaded = await loadUserContext();
 
       if (!contextLoaded) {
         return;
+      }
+
+      /*
+       * Garante que o menu seja carregado nesta página.
+       * Sem isso, o #storeName fica com "Carregando loja..."
+       * quando o app.js não chega a chamar loadMenu().
+       */
+      if (typeof loadMenu === "function") {
+        await loadMenu();
+      }
+
+      if (typeof setActiveNav === "function") {
+        setActiveNav();
       }
 
       const subtitle =
@@ -3707,26 +3716,19 @@ document.addEventListener(
         );
 
       if (subtitle) {
-
         subtitle.textContent =
           "Gerencie os orçamentos dos clientes";
-
       }
 
       await Promise.all([
-
         loadQuoteClients(),
-
         loadQuoteProducts(),
-
         loadQuoteVariations()
-
       ]);
 
       await loadQuotes();
 
     } catch (error) {
-
       console.error(
         "Erro na página de orçamentos:",
         error
@@ -3738,29 +3740,20 @@ document.addEventListener(
         );
 
       if (container) {
-
         container.innerHTML = `
-
           <div class="card">
-
             <h3>
               Erro ao carregar a página
             </h3>
-
             <p>
               ${escapeHtml(
                 error.message ||
                 "Erro desconhecido."
               )}
             </p>
-
           </div>
-
         `;
-
       }
-
     }
-
   }
 );

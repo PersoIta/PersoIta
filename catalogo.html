@@ -55,6 +55,37 @@
       border-bottom: 1px solid #eeeeee;
     }
 
+    /* ==============================
+       BLOCO LOGO + NOME (lado a lado)
+       ============================== */
+
+    .catalog-store-brand {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      max-width: 100%;
+    }
+
+    /* Logo (só aparece se tiver) */
+    .catalog-store-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      max-width: 100%;
+    }
+
+    .catalog-store-logo-image {
+      display: block;
+      max-width: 130px;
+      max-height: 130px;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+    }
+
     .catalog-store-name {
       font-size: 28px !important;
       font-weight: 800;
@@ -663,8 +694,17 @@
         padding-right: 12px;
       }
 
+      .catalog-store-brand {
+        gap: 10px;
+      }
+
+      .catalog-store-logo-image {
+        max-width: 50px;
+        max-height: 50px;
+      }
+
       .catalog-store-name {
-        font-size: 24px !important;
+        font-size: 22px !important;
       }
 
       .catalog-toolbar {
@@ -730,8 +770,6 @@
         grid-template-columns: 1fr;
       }
 
-      /* Carrinho mobile */
-
       .cart-card {
         max-width: 100%;
       }
@@ -778,6 +816,15 @@
 
       .catalog-navigation a {
         font-size: 10px;
+      }
+
+      .catalog-store-logo-image {
+        max-width: 42px;
+        max-height: 42px;
+      }
+
+      .catalog-store-name {
+        font-size: 19px !important;
       }
 
       .catalog-products {
@@ -848,24 +895,26 @@
 
       <header class="catalog-header">
 
-        <div
-          class="catalog-store-name"
-          id="catalogStoreName"
-        >
-          Catálogo
-        </div>
+        <div class="catalog-store-brand">
 
-        <div class="catalog-subtitle">
-          Produtos disponíveis
+          <div
+            id="catalogStoreLogo"
+            class="catalog-store-logo"
+            style="display:none;"
+          ></div>
+
+          <div
+            class="catalog-store-name"
+            id="catalogStoreName"
+          >
+            Catálogo
+          </div>
+
         </div>
 
       </header>
 
       <nav class="catalog-navigation">
-
-        <a href="#catalogProducts">
-          Produtos
-        </a>
 
         <a href="#catalogProducts">
           Catálogo
@@ -927,8 +976,6 @@
   </div>
 
 
-  <!-- MODAL PRODUTO -->
-
   <div
     id="productModal"
     class="catalog-modal hidden"
@@ -958,8 +1005,6 @@
   </div>
 
 
-  <!-- MODAL CARRINHO -->
-
   <div
     id="cartModal"
     class="catalog-modal hidden"
@@ -988,8 +1033,6 @@
 
   </div>
 
-
-  <!-- MODAL CHECKOUT -->
 
   <div
     id="checkoutModal"
