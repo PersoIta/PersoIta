@@ -692,6 +692,34 @@ async function initDashboard() {
   }
 }
 
+/**
+ * Páginas públicas: NÃO exigem login e NÃO carregam menu.
+ * O próprio script da página (ex.: catalogo.js) cuida da
+ * renderização e do controle de acesso.
+ */
+const PUBLIC_PAGES = [
+  "catalogo"
+];
+
+function isPublicPage() {
+  const page =
+    document.body.dataset.page;
+
+  if (PUBLIC_PAGES.includes(page)) {
+    return true;
+  }
+
+  /*
+   * Reforço: se a página tiver o container do catálogo,
+   * tratamos como pública mesmo sem data-page.
+   */
+  if (document.getElementById("catalogProducts")) {
+    return true;
+  }
+
+  return false;
+}
+
 document.addEventListener(
   "DOMContentLoaded",
   async function () {
@@ -712,6 +740,16 @@ document.addEventListener(
 
       login();
 
+      return;
+    }
+
+
+    /*
+     * Páginas públicas (ex.: catálogo) não exigem login
+     * e não devem carregar o menu do sistema.
+     * O próprio script da página cuida de tudo.
+     */
+    if (isPublicPage()) {
       return;
     }
 
