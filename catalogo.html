@@ -93,6 +93,30 @@
       color: #222222;
       margin: 0;
     }
+    
+    .catalog-art-button-wrap {
+  margin-top: 14px;
+  display: flex;
+  justify-content: center;
+}
+    .catalog-create-art-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 40px;
+      padding: 0 18px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #8e76ff, #5734e5);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 4px 12px rgba(108, 77, 246, .25);
+      transition: transform .15s;
+    }
+    .catalog-create-art-btn:hover {
+      transform: translateY(-1px);
+    }
 
     .catalog-subtitle {
       margin-top: 5px;
@@ -698,6 +722,8 @@
         gap: 10px;
       }
 
+      
+
       .catalog-store-logo-image {
         max-width: 50px;
         max-height: 50px;
@@ -911,6 +937,22 @@
           </div>
 
         </div>
+
+        <header class="catalog-header">
+
+  <div class="catalog-store-brand">
+    <div id="catalogStoreLogo" class="catalog-store-logo" style="display:none;"></div>
+    <div class="catalog-store-name" id="catalogStoreName">Catálogo</div>
+  </div>
+
+  <!-- ✅ Botão FORA da .catalog-store-brand, mas dentro do <header> -->
+  <div class="catalog-art-button-wrap">
+    <a href="editor.html" target="_blank" rel="noopener" class="catalog-create-art-btn">
+      🎨 Criar minha arte
+    </a>
+  </div>
+
+</header>
 
       </header>
 
