@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0">
+
+  <title>Gestão Loja - Variações</title>
+
+  <link
+    rel="stylesheet"
+    href="styles.css">
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+  </script>
+
+  <script
+    src="app.js">
+  </script>
+
+</head>
+
+<body data-page="variacoes">
+
+  <div
+    id="app"
+    class="app">
+
+    <div id="menu"></div>
+
+    <main class="main">
+
+      <div class="topbar">
+
+        <div>
+
+          <h1>
+            Variações
+          </h1>
+
+          <div
+            class="muted"
+            id="pageSubtitle">
+          </div>
+
+        </div>
+
+        <div class="user-info">
+
+          <strong id="userName">
+            Usuário
+          </strong>
+
+          <br>
+
+          <span id="userEmail"></span>
+
+        </div>
+
+      </div>
+
+      <div id="content">
+
+        <div class="section">
+
+          <div class="section-head">
+
+            <div>
+
+              <h2>
+                Variações cadastradas
+              </h2>
+
+              <div
+                class="muted">
+                Gerencie as variações, estoque e imagens dos produtos.
+              </div>
+
+            </div>
+
+            <button
+              class="btn btn-primary"
+              onclick="newVariation()">
+
+              + Nova variação
+
+            </button>
+
+          </div>
+
+          <div
+            id="variationsTable"
+            class="loading">
+
+            Carregando...
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <div
+    id="modal"
+    class="modal hidden">
+
+    <div class="modal-card">
+
+      <div class="modal-head">
+
+        <h2 id="modalTitle">
+          Nova variação
+        </h2>
+
+        <button
+          class="close"
+          onclick="closeModal()">
+
+          ×
+
+        </button>
+
+      </div>
+
+      <div id="modalContent"></div>
+
+    </div>
+
+  </div>
+
+  <script>
+
+    let variations = [];
+
+    let products = [];
+
+    let editingVariationId = null;
+
+    let currentImageUrl = null;
+
+    async function loadProducts() {
+
+      const result = await db
+        .from("gestao_loja_produtos")
+        .select(`
+          id,
+          id_loja,
+          nome,
+          sku
+        `)
+        .eq(
+          "id_loja",
+          currentStore.id_loja
+        )
+        .order("nome");
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      products = result.data || [];
+
+    }
+
+    async function loadVariations() {
+
+      const result = await db
+        .from("gestao_loja_produtos_variacoes")
+        .select(`
+          id,
+          id_loja,
+          produto_id,
+          nome,
+          sku,
+          descricao,
+          imagem,
+          preco_custo,
+          preco_venda,
+          estoque,
+          estoque_minimo,
+          ativo,
+          exibir_catalogo,
+          observacoes,
+          created_at,
+          atualizado_em
+        `)
+        .eq(
+          "id_loja",
+          currentStore.id_loja
+        )
+        .order("nome");
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      variations = result.data || [];
+
+    }
+
+    async function renderVariations() {
+
+      try {
+
+        await Promise.all([
+          loadProducts(),
+          loadVariations()
+        ]);
+
+      } catch (e) {
+
+        console.error(e);
+
+        $("variationsTable").innerHTML =
+          '<div class="message error">' +
+          escapeHtml(e.message) +
+          '</div>';
+
+        return;
+
+      }
+
+      if (!variations.length) {
+
+        $("variationsTable").innerHTML =
+          '<div class="empty">' +
+          'Nenhuma variação cadastrada.' +
+          '</div>';
+
+        return;
+
+      }
+
+      $("variationsTable").innerHTML = `
+
+        <div class="table-wrap">
+
+          <table>
+
+            <thead>
+
+              <tr>
+
+                <th>Imagem</th>
+
+                <th>Produto</th>
+
+                <th>Variação</th>
+
+                <th>SKU</th>
+
+                <th>Preço</th>
+
+                <th>Estoque</th>
+
+                <th>Status</th>
+
+                <th></th>
+
+              </tr>
+
+            </thead>
+
+            <tbody>
+
+              ${variations.map(function(v) {
+
+                const product =
+                  products.find(function(p) {
+
+                    return String(p.id) ===
+                      String(v.produto_id);
+
+                  });
+
+                const productName =
+                  product
+                    ? product.nome
+                    : "Produto não encontrado";
+
+                const productSku =
+                  product && product.sku
+                    ? product.sku
+                    : "";
+
+                const stock =
+                  Number(v.estoque || 0);
+
+                const minimum =
+                  Number(v.estoque_minimo || 0);
+
+                const stockLow =
+                  stock <= minimum;
+
+                const imageHtml =
+                  v.imagem
+
+                    ? `
+                      <img
+                        src="${escapeHtml(v.imagem)}"
+                        alt="${escapeHtml(v.nome || "")}"
+                        style="
+                          width:50px;
+                          height:50px;
+                          object-fit:cover;
+                          border-radius:8px;
+                          border:1px solid #ddd;
+                        ">
+                    `
+
+                    : `
+                      <span class="muted">
+                        Sem imagem
+                      </span>
+                    `;
+
+                return `
+
+                  <tr>
+
+                    <td>
+
+                      ${imageHtml}
+
+                    </td>
+
+                    <td>
+
+                      <strong>
+                        ${escapeHtml(productName)}
+                      </strong>
+
+                      ${
+                        productSku
+                          ? `
+                            <br>
+                            <span class="muted">
+                              ${escapeHtml(productSku)}
+                            </span>
+                          `
+                          : ""
+                      }
+
+                    </td>
+
+                    <td>
+
+                      <strong>
+                        ${escapeHtml(v.nome || "")}
+                      </strong>
+
+                      ${
+                        v.descricao
+                          ? `
+                            <br>
+                            <span class="muted">
+                              ${escapeHtml(v.descricao)}
+                            </span>
+                          `
+                          : ""
+                      }
+
+                    </td>
+
+                    <td>
+
+                      <strong>
+                        ${escapeHtml(
+                          v.sku || "Gerando..."
+                        )}
+                      </strong>
+
+                    </td>
+
+                    <td>
+
+                      ${money(v.preco_venda)}
+
+                    </td>
+
+                    <td>
+
+                      <span
+                        class="badge ${
+                          stockLow
+                            ? "badge-red"
+                            : "badge-green"
+                        }">
+
+                        ${stock}
+
+                        ${
+                          stockLow
+                            ? " - Baixo"
+                            : " - Normal"
+                        }
+
+                      </span>
+
+                    </td>
+
+                    <td>
+
+                      <span
+                        class="badge ${
+                          v.ativo
+                            ? "badge-green"
+                            : "badge-red"
+                        }">
+
+                        ${
+                          v.ativo
+                            ? "Ativo"
+                            : "Inativo"
+                        }
+
+                      </span>
+
+                    </td>
+
+                    <td>
+
+                      <button
+                        class="btn btn-secondary"
+                        onclick="editVariation('${v.id}')">
+
+                        Editar
+
+                      </button>
+
+                    </td>
+
+                  </tr>
+
+                `;
+
+              }).join("")}
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      `;
+
+    }
+
+    function variationForm(v = {}) {
+
+      const productOptions =
+        products.map(function(p) {
+
+          return `
+
+            <option
+              value="${p.id}"
+              ${
+                String(
+                  v.produto_id || ""
+                ) === String(p.id)
+                  ? "selected"
+                  : ""
+              }>
+
+              ${escapeHtml(p.nome)}
+
+              ${
+                p.sku
+                  ? " - " +
+                    escapeHtml(p.sku)
+                  : ""
+              }
+
+            </option>
+
+          `;
+
+        }).join("");
+
+      const imagePreview =
+        v.imagem
+          ? `
+            <div
+              id="imagePreviewContainer"
+              style="
+                margin-top:15px;
+                text-align:center;
+              ">
+
+              <img
+                id="imagePreview"
+                src="${escapeHtml(v.imagem)}"
+                alt="Imagem da variação"
+                style="
+                  width:180px;
+                  height:180px;
+                  object-fit:cover;
+                  border-radius:10px;
+                  border:1px solid #ddd;
+                ">
+
+              <br>
+
+              <button
+                type="button"
+                class="btn btn-secondary"
+                style="margin-top:10px;"
+                onclick="removeImage()">
+
+                Remover imagem
+
+              </button>
+
+            </div>
+          `
+          : `
+            <div
+              id="imagePreviewContainer"
+              style="
+                display:none;
+                margin-top:15px;
+                text-align:center;
+              ">
+
+              <img
+                id="imagePreview"
+                src=""
+                alt="Pré-visualização"
+                style="
+                  width:180px;
+                  height:180px;
+                  object-fit:cover;
+                  border-radius:10px;
+                  border:1px solid #ddd;
+                ">
+
+              <br>
+
+              <button
+                type="button"
+                class="btn btn-secondary"
+                style="margin-top:10px;"
+                onclick="removeImage()">
+
+                Remover imagem
+
+              </button>
+
+            </div>
+          `;
+
+      return `
+
+        <form
+          onsubmit="
+            saveVariation(
+              event,
+              ${
+                v.id
+                  ? `'${v.id}'`
+                  : "null"
+              }
+            )
+          ">
+
+          <div>
+
+            <label>
+              Produto *
+            </label>
+
+            <select
+              id="v_produto"
+              required>
+
+              <option value="">
+                Selecione o produto
+              </option>
+
+              ${productOptions}
+
+            </select>
+
+          </div>
+
+          <div>
+
+            <label>
+              Imagem da variação
+            </label>
+
+            <div
+              style="
+                border:2px dashed #d1d5db;
+                border-radius:10px;
+                padding:20px;
+                text-align:center;
+                margin-top:5px;
+              ">
+
+              <label
+                for="v_imagem"
+                class="btn btn-primary"
+                style="
+                  display:inline-block;
+                  cursor:pointer;
+                ">
+
+                Selecionar imagem
+
+              </label>
+
+              <input
+                type="file"
+                id="v_imagem"
+                accept="image/*"
+                style="display:none;"
+                onchange="previewImage(event)">
+
+              <div
+                id="imageFileName"
+                class="muted"
+                style="margin-top:10px;">
+
+                ${
+                  v.imagem
+                    ? "Imagem atual"
+                    : "Nenhuma imagem selecionada"
+                }
+
+              </div>
+
+              ${imagePreview}
+
+              <div
+                id="uploadStatus"
+                class="muted"
+                style="
+                  display:none;
+                  margin-top:10px;
+                ">
+
+                Enviando imagem...
+
+              </div>
+
+            </div>
+
+          </div>
+
+          <div class="grid2">
+
+            <div>
+
+              <label>
+                SKU
+              </label>
+
+              <input
+                id="v_sku"
+                value="${
+                  v.sku
+                    ? escapeHtml(v.sku)
+                    : "Gerado automaticamente"
+                }"
+                readonly>
+
+              <small class="muted">
+
+                O SKU é gerado automaticamente
+                pelo sistema.
+
+              </small>
+
+            </div>
+
+            <div>
+
+              <label>
+                Nome da variação *
+              </label>
+
+              <input
+                id="v_nome"
+                required
+                value="${escapeHtml(v.nome || "")}"
+                placeholder="Ex.: Azul - M">
+
+            </div>
+
+          </div>
+
+          <div>
+
+            <label>
+              Descrição
+            </label>
+
+            <textarea
+              id="v_descricao"
+              rows="3"
+              placeholder="Descrição da variação"
+            >${escapeHtml(v.descricao || "")}</textarea>
+
+          </div>
+
+          <div class="grid2">
+
+            <div>
+
+              <label>
+                Preço de venda
+              </label>
+
+              <input
+                id="v_preco"
+                type="number"
+                step="0.01"
+                min="0"
+                value="${v.preco_venda ?? 0}">
+
+            </div>
+
+            <div>
+
+              <label>
+                Preço de custo
+              </label>
+
+              <input
+                id="v_custo"
+                type="number"
+                step="0.01"
+                min="0"
+                value="${v.preco_custo ?? 0}">
+
+            </div>
+
+          </div>
+
+          <div class="grid2">
+
+            <div>
+
+              <label>
+                Estoque inicial
+              </label>
+
+              <input
+                id="v_estoque"
+                type="number"
+                step="0.001"
+                min="0"
+                value="${v.estoque ?? 0}"
+                ${
+                  v.id
+                    ? "disabled"
+                    : ""
+                }>
+
+              ${
+                v.id
+                  ? `
+                    <small class="muted">
+                      O estoque não é alterado
+                      pela edição da variação.
+                    </small>
+                  `
+                  : ""
+              }
+
+            </div>
+
+            <div>
+
+              <label>
+                Estoque mínimo
+              </label>
+
+              <input
+                id="v_minimo"
+                type="number"
+                step="0.001"
+                min="0"
+                value="${v.estoque_minimo ?? 0}">
+
+            </div>
+
+          </div>
+
+          <label>
+
+            <input
+              id="v_ativo"
+              type="checkbox"
+              style="width:auto"
+              ${
+                v.ativo !== false
+                  ? "checked"
+                  : ""
+              }>
+
+            Variação ativa
+
+          </label>
+
+          <label>
+
+            <input
+              id="v_catalogo"
+              type="checkbox"
+              style="width:auto"
+              ${
+                v.exibir_catalogo !== false
+                  ? "checked"
+                  : ""
+              }>
+
+            Exibir no catálogo
+
+          </label>
+
+          <div>
+
+            <label>
+              Observações
+            </label>
+
+            <textarea
+              id="v_observacoes"
+              rows="3"
+              placeholder="Observações internas"
+            >${escapeHtml(v.observacoes || "")}</textarea>
+
+          </div>
+
+          <button
+            class="btn btn-primary full"
+            type="submit"
+            id="saveVariationButton">
+
+            Salvar variação
+
+          </button>
+
+        </form>
+
+      `;
+
+    }
+
+    function newVariation() {
+
+      if (!products.length) {
+
+        alert(
+          "Cadastre pelo menos um produto antes de criar uma variação."
+        );
+
+        return;
+
+      }
+
+      editingVariationId = null;
+
+      currentImageUrl = null;
+
+      openModal(
+        "Nova variação",
+        variationForm({
+          ativo: true,
+          exibir_catalogo: true
+        })
+      );
+
+    }
+
+    function editVariation(id) {
+
+      const variation =
+        variations.find(function(v) {
+
+          return String(v.id) ===
+            String(id);
+
+        });
+
+      if (!variation) {
+
+        alert(
+          "Variação não encontrada."
+        );
+
+        return;
+
+      }
+
+      editingVariationId =
+        id;
+
+      currentImageUrl =
+        variation.imagem || null;
+
+      openModal(
+        "Editar variação",
+        variationForm(variation)
+      );
+
+    }
+
+    function previewImage(event) {
+
+      const file =
+        event.target.files[0];
+
+      if (!file) {
+        return;
+      }
+
+      if (!file.type.startsWith("image/")) {
+
+        alert(
+          "Selecione um arquivo de imagem."
+        );
+
+        event.target.value = "";
+
+        return;
+
+      }
+
+      const maxSize =
+        5 * 1024 * 1024;
+
+      if (file.size > maxSize) {
+
+        alert(
+          "A imagem deve ter no máximo 5 MB."
+        );
+
+        event.target.value = "";
+
+        return;
+
+      }
+
+      $("imageFileName").textContent =
+        file.name;
+
+      const reader =
+        new FileReader();
+
+      reader.onload =
+        function(e) {
+
+          $("imagePreview").src =
+            e.target.result;
+
+          $("imagePreviewContainer")
+            .style.display =
+            "block";
+
+        };
+
+      reader.readAsDataURL(file);
+
+    }
+
+    function removeImage() {
+
+      const input =
+        $("v_imagem");
+
+      if (input) {
+        input.value = "";
+      }
+
+      if ($("imageFileName")) {
+
+        $("imageFileName").textContent =
+          "Nenhuma imagem selecionada";
+
+      }
+
+      if ($("imagePreview")) {
+
+        $("imagePreview").src = "";
+
+      }
+
+      if ($("imagePreviewContainer")) {
+
+        $("imagePreviewContainer")
+          .style.display =
+          "none";
+
+      }
+
+      currentImageUrl = null;
+
+    }
+
+    async function uploadImage(file) {
+
+      if (!file) {
+
+        return currentImageUrl;
+
+      }
+
+      $("uploadStatus")
+        .style.display =
+        "block";
+
+      $("uploadStatus").textContent =
+        "Enviando imagem...";
+
+      const extension =
+        file.name
+          .split(".")
+          .pop()
+          .toLowerCase();
+
+      const uniqueName =
+        Date.now() +
+        "_" +
+        Math.random()
+          .toString(36)
+          .substring(2, 10) +
+        "." +
+        extension;
+
+      const filePath =
+        currentStore.id_loja +
+        "/variacoes/" +
+        uniqueName;
+
+      const upload =
+        await db.storage
+          .from("produtos")
+          .upload(
+            filePath,
+            file,
+            {
+              cacheControl: "3600",
+              upsert: false
+            }
+          );
+
+      if (upload.error) {
+
+        $("uploadStatus")
+          .style.display =
+          "none";
+
+        throw upload.error;
+
+      }
+
+      const publicUrl =
+        db.storage
+          .from("produtos")
+          .getPublicUrl(
+            filePath
+          );
+
+      $("uploadStatus").textContent =
+        "Imagem enviada.";
+
+      return publicUrl
+        .data
+        .publicUrl;
+
+    }
+
+    async function saveVariation(ev, id) {
+
+      ev.preventDefault();
+
+      if (!currentStore) {
+
+        alert(
+          "Não foi possível identificar a loja."
+        );
+
+        return;
+
+      }
+
+      const produtoId =
+        Number(
+          $("v_produto").value
+        );
+
+      const produto =
+        products.find(function(p) {
+
+          return Number(p.id) ===
+            produtoId;
+
+        });
+
+      if (!produto) {
+
+        alert(
+          "Selecione um produto válido."
+        );
+
+        return;
+
+      }
+
+      const nome =
+        $("v_nome")
+          .value
+          .trim();
+
+      if (!nome) {
+
+        alert(
+          "Informe o nome da variação."
+        );
+
+        return;
+
+      }
+
+      const precoVenda =
+        Number(
+          $("v_preco").value || 0
+        );
+
+      const precoCusto =
+        Number(
+          $("v_custo").value || 0
+        );
+
+      const estoqueMinimo =
+        Number(
+          $("v_minimo").value || 0
+        );
+
+      if (
+        precoVenda < 0 ||
+        precoCusto < 0 ||
+        estoqueMinimo < 0
+      ) {
+
+        alert(
+          "Os valores não podem ser negativos."
+        );
+
+        return;
+
+      }
+
+      const saveButton =
+        $("saveVariationButton");
+
+      saveButton.disabled = true;
+
+      saveButton.textContent =
+        "Salvando...";
+
+      try {
+
+        const selectedFile =
+          $("v_imagem")
+            .files[0];
+
+        let imageUrl =
+          currentImageUrl;
+
+        if (selectedFile) {
+
+          imageUrl =
+            await uploadImage(
+              selectedFile
+            );
+
+        }
+
+        const payload = {
+
+          id_loja:
+            currentStore.id_loja,
+
+          produto_id:
+            produtoId,
+
+          nome:
+            nome,
+
+          descricao:
+            $("v_descricao")
+              .value
+              .trim() || null,
+
+          imagem:
+            imageUrl || null,
+
+          preco_venda:
+            precoVenda,
+
+          preco_custo:
+            precoCusto,
+
+          estoque_minimo:
+            estoqueMinimo,
+
+          ativo:
+            $("v_ativo").checked,
+
+          exibir_catalogo:
+            $("v_catalogo").checked,
+
+          observacoes:
+            $("v_observacoes")
+              .value
+              .trim() || null
+
+        };
+
+        let result;
+
+        if (id) {
+
+          result =
+            await db
+              .from(
+                "gestao_loja_produtos_variacoes"
+              )
+              .update(payload)
+              .eq(
+                "id",
+                id
+              )
+              .eq(
+                "id_loja",
+                currentStore.id_loja
+              );
+
+        } else {
+
+          payload.estoque =
+            Number(
+              $("v_estoque")
+                .value || 0
+            );
+
+          result =
+            await db
+              .from(
+                "gestao_loja_produtos_variacoes"
+              )
+              .insert(payload);
+
+        }
+
+        if (result.error) {
+
+          throw result.error;
+
+        }
+
+        closeModal();
+
+        currentImageUrl = null;
+
+        await renderVariations();
+
+      } catch (error) {
+
+        console.error(
+          "Erro ao salvar variação:",
+          error
+        );
+
+        alert(
+          "Erro ao salvar variação:\n" +
+          error.message
+        );
+
+      } finally {
+
+        saveButton.disabled =
+          false;
+
+        saveButton.textContent =
+          "Salvar variação";
+
+        if ($("uploadStatus")) {
+
+          $("uploadStatus")
+            .style.display =
+            "none";
+
+        }
+
+      }
+
+    }
+
+    document.addEventListener(
+      "DOMContentLoaded",
+      async function() {
+
+        const authenticated =
+          await requireAuth();
+
+        if (!authenticated) {
+          return;
+        }
+
+        const contextLoaded =
+          await loadUserContext();
+
+        if (!contextLoaded) {
+          return;
+        }
+
+        setActiveNav();
+
+        $("pageSubtitle").textContent =
+          "Cadastre e gerencie as variações dos seus produtos";
+
+        try {
+
+          await renderVariations();
+
+        } catch (e) {
+
+          console.error(e);
+
+          $("variationsTable").innerHTML =
+            '<div class="message error">' +
+            escapeHtml(e.message) +
+            '</div>';
+
+        }
+
+      }
+    );
+
+  </script>
+
+</body>
+
+</html>

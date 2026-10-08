@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pedidos - Gestão Loja</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js" defer></script>
+  <script src="pedidos.js" defer></script>
+</head>
+<body data-page="pedidos">
+  <div id="menu"></div>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Pedidos</h1>
+        <div class="muted" id="pageSubtitle">
+          Gerencie os pedidos dos clientes
+        </div>
+      </div>
+
+      <div class="user-info">
+        <strong id="userName">Usuário</strong>
+        <br>
+        <span id="userEmail"></span>
+      </div>
+    </div>
+
+    <section class="content">
+      <div
+        style="
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:15px;
+          margin-bottom:20px;
+          flex-wrap:wrap;
+        "
+      >
+        <button
+          class="btn btn-primary"
+          onclick="openNewOrder()"
+        >
+          + Novo pedido
+        </button>
+      </div>
+
+      <div id="ordersContainer">
+        Carregando pedidos...
+      </div>
+    </section>
+  </main>
+
+  <div id="modal" class="modal hidden">
+    <div
+      class="modal-card"
+      style="max-width:900px;"
+    >
+      <div class="modal-head">
+        <h2 id="modalTitle">Pedido</h2>
+
+        <button
+          class="close"
+          onclick="closeModal()"
+        >
+          ×
+        </button>
+      </div>
+
+      <div id="modalContent"></div>
+    </div>
+  </div>
+</body>
+</html>

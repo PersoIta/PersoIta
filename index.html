@@ -1,410 +1,345 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+
+<html lang="pt-BR">
 <head>
-  <title>PersoIta</title>
   <meta charset="UTF-8">
-  <link rel="stylesheet" href="style.css">
-  <meta name="viewport" content="initial-scale=1.0, width=device-width" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestão Loja</title>
+
+  <link rel="stylesheet" href="styles.css">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Inter, Arial, sans-serif;
+      background: #f4f7fb;
+      color: #172033;
+    }
+
+    .login-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 10% 20%, rgba(79, 70, 229, .20), transparent 30%),
+        radial-gradient(circle at 90% 80%, rgba(37, 99, 235, .18), transparent 30%),
+        linear-gradient(135deg, #eef2ff 0%, #f8fafc 50%, #eff6ff 100%);
+    }
+
+    .background-shape {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(2px);
+      pointer-events: none;
+    }
+
+    .shape-one {
+      width: 280px;
+      height: 280px;
+      background: rgba(99, 102, 241, .12);
+      top: -100px;
+      left: -80px;
+    }
+
+    .shape-two {
+      width: 360px;
+      height: 360px;
+      background: rgba(59, 130, 246, .10);
+      right: -140px;
+      bottom: -150px;
+    }
+
+    .login-container {
+      width: 100%;
+      max-width: 430px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .login-card {
+      background: rgba(255, 255, 255, .96);
+      border: 1px solid rgba(226, 232, 240, .9);
+      border-radius: 24px;
+      padding: 42px 38px;
+      box-shadow:
+        0 25px 60px rgba(15, 23, 42, .12),
+        0 8px 25px rgba(15, 23, 42, .06);
+      backdrop-filter: blur(12px);
+    }
+
+    .brand {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .brand-icon {
+      width: 68px;
+      height: 68px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 25px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      background: linear-gradient(135deg, #2563eb, #4f46e5);
+      box-shadow: 0 12px 25px rgba(79, 70, 229, .28);
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .login-header h1 {
+      font-size: 28px;
+      line-height: 1.2;
+      font-weight: 800;
+      color: #111827;
+      margin-bottom: 9px;
+    }
+
+    .login-header p {
+      color: #64748b;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #334155;
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    .input-wrapper svg {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 19px;
+      height: 19px;
+      color: #94a3b8;
+      pointer-events: none;
+    }
+
+    .input-wrapper input {
+      width: 100%;
+      height: 52px;
+      border: 1px solid #dbe2ea;
+      border-radius: 13px;
+      background: #f8fafc;
+      color: #111827;
+      font-size: 14px;
+      padding: 0 16px 0 46px;
+      outline: none;
+      transition: .2s ease;
+    }
+
+    .input-wrapper input::placeholder {
+      color: #a1aaba;
+    }
+
+    .input-wrapper input:hover {
+      border-color: #cbd5e1;
+      background: #fff;
+    }
+
+    .input-wrapper input:focus {
+      border-color: #4f46e5;
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(79, 70, 229, .10);
+    }
+
+    .login-button {
+      width: 100%;
+      height: 53px;
+      border: none;
+      border-radius: 13px;
+      margin-top: 8px;
+      cursor: pointer;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #2563eb, #4f46e5);
+      box-shadow: 0 10px 22px rgba(79, 70, 229, .25);
+      transition: .2s ease;
+    }
+
+    .login-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 13px 26px rgba(79, 70, 229, .32);
+    }
+
+    .login-button:active {
+      transform: translateY(0);
+    }
+
+    .login-button:disabled {
+      cursor: not-allowed;
+      opacity: .7;
+      transform: none;
+    }
+
+    #loginMessage {
+      margin-top: 16px;
+    }
+
+    .message {
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .message.error {
+      color: #b91c1c;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+    }
+
+    .message.success {
+      color: #166534;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+    }
+
+    .login-footer {
+      text-align: center;
+      margin-top: 25px;
+      color: #94a3b8;
+      font-size: 12px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 480px) {
+      .login-page {
+        padding: 16px;
+      }
+
+      .login-card {
+        padding: 32px 24px;
+        border-radius: 20px;
+      }
+
+      .login-header h1 {
+        font-size: 25px;
+      }
+
+      .brand-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 17px;
+      }
+    }
+  </style>
+
 </head>
+
 <body>
-    <div class="popup-overlay" id="popup-overlay"></div>
-    <div class="pop-up">
-        <div class="centralizado">
-            <div class="janela-modal" id="janela-modal">
-                <div class="centralizado" id="modal" class="visualização_modal">
-                    <button class="fechar" id="fechar">X</button>
-                    <h1>Caneca de Polímero Branca de 325ml</h1>
-                    <p>
-                        A caneca de polímero branca de 325ml personalizada combina leveza e resistência em um design moderno. Ideal para uso diário, seu material durável proporciona conforto ao segurar e é perfeito para bebidas quentes ou frias. Personalizável com fotos, frases ou designs exclusivos, é um presente memorável que expressa cuidado e estilo único.
-                    </p>
-                    <p class="preco">Por apenas: R$ 35,00</p>
-                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20caneca%20de%20pol%C3%ADmero%20branca%20e%20fazer%20o%20pedido.">Entre em contato pelo Whatsapp</a>
-                </div>
-            </div>
-            <div class="janela-modal1" id="janela-modal1">
-                <div class="centralizado" id="modal1" class="visualização_modal">
-                    <button class="fechar1" id="fechar1">X</button>
-                    <h1>Caneca de Porcelana Branca de 325ml</h1>
-                    <p>
-                        A caneca de porcelana personalizada é um presente único que combina estilo e sentimentos pessoais. Ideal para celebrar momentos especiais, pode ser personalizada com fotos, nomes ou frases, tornando-a uma lembrança afetuosa e prática para qualquer ocasião. Perfeita para começar o dia com um toque pessoal ou presentear alguém querido com algo verdadeiramente especial.
-                    </p>
-                    <p class="preco">Por apenas: R$ 40,00</p>
-                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20caneca%20de%20porcelana%20branca%20e%20fazer%20o%20pedido.">Entre em Contato pelo Whatsapp</a>
-                </div>
-            </div>
-            <div class="janela-modal2" id="janela-modal2">
-                <div class="centralizado" id="modal2" class="visualização_modal">
-                    <button class="fechar2" id="fechar2">X</button>
-                    <h1>Caneca de Porcelana de Alça e Interior Rosa</h1>
-                    <p>
-                        A caneca de porcelana com alça e interior rosa personalizada é um presente delicado e cheio de significado. Perfeita para expressar carinho, pode ser decorada com fotos, nomes ou mensagens especiais, criando uma lembrança única e afetuosa. Ideal para momentos especiais como aniversários ou simplesmente para alegrar o dia de alguém especial.
-                    </p>
-                    <p class="preco">Por apenas: R$ 45,00</p>
-                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20caneca%20de%20porcelana%20de%20al%C3%A7a%20e%20interior%20rosa%20e%20fazer%20o%20pedido.">Entre em Contato pelo Whatsapp</a>
-                </div>
-            </div>
-            <div class="janela-modal3" id="janela-modal3">
-                <div class="centralizado" id="modal3" class="visualização_modal">
-                    <button class="fechar3" id="fechar3">X</button>
-                    <h1>Caneca de Porcelana de Alça e Interior Azul</h1>
-                    <p>
-                        A caneca de porcelana com alça e interior azul personalizada é um presente encantador e cheio de personalidade. Feita para expressar afeto, pode ser decorada com fotos, nomes ou mensagens queridas, tornando-a uma lembrança única e emocional. Perfeita para celebrar momentos especiais ou simplesmente para alegrar o dia de quem recebe.
-                    </p>
-                    <p class="preco">Por apenas: R$ 45,00</p>
-                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20caneca%20de%20porcelana%20de%20al%C3%A7a%20e%20interior%20azul%20e%20fazer%20o%20pedido.">Entre em Contato pelo Whatsapp</a>
-                </div>
-            </div>
-            <div class="janela-modal4" id="janela-modal4">
-                <div class="centralizado" id="modal4" class="visualização_modal">
-                    <button class="fechar4" id="fechar4">X</button>
-                    <h1>Caneca de Porcelana de Alça e Interior Preta</h1>
-                    <p>
-                        A caneca de porcelana com alça e interior preto personalizada é um presente sofisticado e significativo. Feita para expressar sentimentos, pode ser personalizada com fotos, nomes ou frases especiais, criando uma lembrança única e emocional. Ideal para marcar ocasiões especiais ou simplesmente para fazer alguém se sentir especial todos os dias.
-                    </p>
-                    <p class="preco">Por apenas: R$ 45,00</p>
-                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20caneca%20de%20porcelana%20de%20al%C3%A7a%20e%20interior%20preta%20e%20fazer%20o%20pedido.">Entre em Contato pelo Whatsapp</a>
-                </div>
-            </div>
-            <div class="janela-modal5" id="janela-modal5" class="visualização_modal">
-                <div class="centralizado" id="modal5">
-                    <button class="fechar5" id="fechar5">X</button>
-                    <h1>Caneca de Porcelana de Alça e Interior Amarelo</h1>
-                    <p>
-                        A caneca de porcelana com alça e interior amarelo personalizada é um presente alegre e caloroso. Feita para transmitir sentimentos, pode ser decorada com fotos, nomes ou mensagens especiais, criando uma lembrança única e afetuosa. Ideal para iluminar o dia de alguém especial ou celebrar momentos memoráveis com um toque de sol.
-                    </p>
-                    <p class="preco">Por apenas: R$ 45,00</p>
-                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20caneca%20de%20porcelana%20de%20al%C3%A7a%20e%20interior%20amarelo%20e%20fazer%20o%20pedido.">Entre em Contato pelo Whatsapp</a>
-                </div>
-            </div>
-            <div class="janela-modal6" id="janela-modal6">
-                <div class="centralizado" id="modal6" class="visualização_modal">
-                    <button class="fechar6" id="fechar6">X</button>
-                    <h1>Caneca de Porcelana de Alça e Interior Lilas</h1>
-                    <p>
-                        A caneca de porcelana com alça e interior lilás personalizada é um presente delicado e cheio de significado. Feita para expressar sentimentos, pode ser decorada com fotos, nomes ou mensagens especiais, criando uma lembrança única e emocional. Ideal para momentos especiais ou para alegrar o dia de alguém querido com um toque suave e encantador.
-                    </p>
-                    <p class="preco">Por apenas: R$ 45,00</p>
-                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20caneca%20de%20porcelana%20de%20al%C3%A7a%20e%20interior%20lilas%20e%20fazer%20o%20pedido.">Entre em Contato pelo Whatsapp</a>
-                </div>
-            </div>
-            <div class="janela-modal7" id="janela-modal7">
-                <div class="centralizado" id="modal7" class="visualização_modal">
-                    <button class="fechar7" id="fechar7">X</button>
-                    <h1>Caneca de Porcelana de Alça e Interior Vermelho</h1>
-                    <p>
-                        A caneca de porcelana com alça e interior vermelho personalizada é um presente vibrante e cheio de emoção. Feita para expressar afeto, pode ser decorada com fotos, nomes ou mensagens especiais, criando uma lembrança única e memorável. Ideal para celebrar momentos especiais ou simplesmente para aquecer o coração de quem recebe com uma cor que simboliza paixão e alegria.
-                    </p>
-                    <p class="preco">Por apenas: R$ 45,00</p>
-                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20caneca%20de%20porcelana%20de%20al%C3%A7a%20e%20interior%20vermelho%20e%20fazer%20o%20pedido.">Entre em Contato pelo Whatsapp</a>
-                </div>
-            </div>
-            <div class="janela-modal8" id="janela-modal8">
-                <div class="centralizado" id="modal8" class="visualização_modal">
-                    <button class="fechar8" id="fechar8">X</button>
-                    <h1>Caneca de Porcelana de Alça de Coração Vermelho</h1>
-                    <p>
-                        A caneca de porcelana com alça em formato de coração vermelho personalizada é um presente amoroso e encantador. Feita para expressar carinho, pode ser decorada com fotos, nomes ou mensagens especiais, criando uma lembrança única e emocionante. Ideal para momentos românticos ou para mostrar o quanto alguém é especial com um toque de amor e cuidado.
-                    </p>
-                    <p class="preco">Por apenas: R$ 50,00</p>
-                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20caneca%20de%20porcelana%20de%20al%C3%A7a%20de%20cora%C3%A7%C3%A3o%20vermelho%20e%20fazer%20o%20pedido.">Entre em Contato pelo Whatsapp</a>
-                </div>
-            </div>
-            <div class="janela-modal9" id="janela-modal9">
-                <div class="centralizado" id="modal9" class="visualização_modal">
-                    <button class="fechar9" id="fechar9">X</button>
-                    <h1>Caneca Porcelana de Alça de Coraçao Rosa</h1>
-                    <p>
-                        A caneca de porcelana com alça em formato de coração rosa personalizada é um presente delicado e cheio de carinho. Feita para expressar afeto, pode ser decorada com fotos, nomes ou mensagens especiais, criando uma lembrança única e emocional. Ideal para celebrar momentos especiais ou para demonstrar amor com um toque suave e encantador.
-                    </p>
-                    <p class="preco">Por apenas: R$ 50,00</p>
-                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20caneca%20de%20porcelana%20de%20al%C3%A7a%20de%20cora%C3%A7%C3%A3o%20rosa%20e%20fazer%20o%20pedido.">Entre em Contato pelo Whatsapp</a>
-                </div>
-            </div>
-            <div class="janela-modal10" id="janela-modal10">
-                <div class="centralizado" id="modal10" class="visualização_modal">
-                    <button class="fechar10" id="fechar10">X</button>
-                    <h1>Caneca de Porcelana Mágica Preto Fosco</h1>
-                    <p>
-                        A caneca de porcelana mágica preto fosco é um objeto fascinante que surpreende pelo seu efeito único. Quando exposta a líquidos quentes, revela uma personalização especial, como fotos, frases ou desenhos, transformando-se diante dos olhos. Feita com porcelana de alta qualidade e acabamento fosco elegante, combina funcionalidade com um toque de magia. É ideal para presentear pessoas que apreciam itens originais e únicos, tornando-se não apenas uma caneca, mas uma experiência interativa que encanta a todos.
-                    </p>
-                    <p class="preco">Por apenas: R$ 55,00</p>
-                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20caneca%20de%20porcelana%20magica%20preto%20fosco.">Entre em Contato pelo Whatsapp</a>
-                </div>
-            </div>
-            <div class="janela-modal11" id="janela-modal11">
-                <div class="centralizado" id="modal11" class="visualização_modal">
-                    <button class="fechar11" id="fechar11">X</button>
-                    <h1>Camisa Branca de Políester Infantil</h1>
-                    <p>
-                        A camisa branca de poliéster infantil personalizada é uma peça única e especial para os pequenos. Feita com tecido leve e confortável, oferece liberdade de movimento e estilo personalizado com nomes, logos ou designs especiais. Ideal para eventos escolares, festas de aniversário ou como uniforme, garantindo conforto e um toque pessoal que faz cada criança se destacar.
-                    <p>
-                    <p class="tamanho">Tamanhos Disponíveis: P, M, G, GG </p>
-                    <p class="preco">Por apenas: R$ 35,00</p>
-                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20as%20camisas%20infantil%20branca%20personalizada.">Entre em Contato pelo Whatsapp</a>
-                </div>
-            </div>
-            <div class="janela-modal12" id="janela-modal12">
-                <div class="centralizado" id="modal12" class="visualização_modal">
-                    <button class="fechar12" id="fechar12">X</button>
-                    <h1>Camisa Branca de Políester Masculina Personalizado</h1>
-                    <p>
-                        A camisa branca de poliéster masculina é uma escolha versátil e elegante para homens. Feita com tecido leve e resistente, proporciona conforto durante todo o dia, seja para o trabalho ou eventos sociais. Com um corte moderno e acabamento refinado, é ideal para combinar com diferentes estilos e ocasiões, garantindo um visual sofisticado e confiante.
-                    <p>                       
-                    <p class="tamanho">Tamanhos Disponíveis: PP, P, M, G, GG, G1, G2 e G3</p>
-                    <p class="preco">Por apenas: R$ 35,00</p>
-                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20as%20camisas%20masculina%20branca%20personalizada.">Entre em Contato pelo Whatsapp</a>
-                </div>
-            </div>
-            <div class="janela-modal13" id="janela-modal13">
-                <div class="centralizado" id="modal13" class="visualização_modal">
-                    <button class="fechar13" id="fechar13">X</button>
-                    <h1>Camisa Branca de Políester Feminina Personalizado</h1>
-                    <p>
-                        A camisa branca de poliéster feminina é uma peça essencial que combina estilo e praticidade. Feita com tecido leve e respirável, oferece conforto durante o dia todo, perfeita para o trabalho ou ocasiões formais. Com um design elegante e versátil, permite combinações diversas que destacam a personalidade e a confiança da mulher moderna.
-                    <p> 
-                    <p class="tamanho">Tamanhos Disponíveis: Baby Look - (P, M, G, GG) </p>
-                    <p class="preco">Por apenas: R$ 35,00</p>
-                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20as%20camisas%20feminina%20branca%20personalizada.">Entre em Contato pelo Whatsapp</a>
-                </div>
-            </div>
-            <div class="janela-modal14" id="janela-modal14">
-                <div class="centralizado" id="modal14" class="visualização_modal">
-                    <button class="fechar14" id="fechar14">X</button>
-                    <h1>Body Bebê Branco Personalizado</h1>
-                    <p>
-                        O body bebê personalizado branco é um presente adorável e prático para os pequeninos. Feito com tecido macio e seguro para a pele delicada do bebê, oferece conforto e liberdade de movimento. Personalizável com nome, desenhos ou mensagens especiais, é ideal para ocasiões especiais como batizados ou como uma lembrança afetuosa de momentos preciosos.
-                    <p>
-                    <p class="tamanho">Tamanhos Disponíveis: RN (Recém Nascido), P, M, G, GG </p>
-                    <p class="preco">Por apenas: R$ 35,00</p>
-                    <a href="https://wa.me/5531990617485?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20as%20camisas%20body%20beb%C3%AA%20branco%20personalizada.">Entre em Contato pelo Whatsapp</a>
-                </div>
-            </div>
-            <div class="janela-modal15" id="janela-modal15">
-                <div class="centralizado" id="modal15" class="visualização_modal">
-                    <button class="fechar15" id="fechar15">X</button>
-                    <h1>Placa de Acrílico Branca</h1>
-                    <p>
-                        A placa de acrílico branca personalizada de tamanho 10x15 oferece uma combinação única de funcionalidade e personalização. Feita com acrílico de alta qualidade, proporciona durabilidade e um acabamento sofisticado. Esta placa permite personalização com fotos, nomes e uma variedade de designs especiais, tornando-a ideal para presentes ou decoração personalizada. Além disso, inclui a opção de inserir um QR Code personalizado para pagamentos, facilitando transações rápidas e seguras para empresas ou eventos. Com seu tamanho prático, pode ser exibida facilmente em diversos ambientes, destacando-se pelo seu apelo estético e funcional.
-                    <p>
-                    <p class="preco">Por apenas: R$ 40,00</p>
-                    <a href="https://wa.me/5531990617185?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20placa%20de%20acr%C3%ADlico%20branca%20personalizada.">Entre em Contato pelo Whatsapp</a>
-                </div>
-            </div>
-            <div class="janela-modal16" id="janela-modal16">
-                <div class="centralizado" id="modal16" class="visualização_modal">
-                    <button class="fechar16" id="fechar16">X</button>
-                    <h1>Placa de Acrílico Transparente</h1>
-                    <p>
-                        A placa de acrílico transparente personalizada tamanho 10x15 oferece uma elegante combinação de transparência e personalização. Fabricada com acrílico de alta qualidade, garante durabilidade e um visual moderno. Esta placa pode ser personalizada com fotos, nomes e uma variedade de designs exclusivos, sendo perfeita para presentes especiais ou decoração personalizada. Além disso, oferece a opção de incluir um QR Code personalizado para pagamentos, facilitando transações rápidas e seguras em ambientes comerciais ou eventos. Com seu formato compacto, é ideal para exibição em espaços limitados, destacando-se pela sua versatilidade e apelo estético.
-                    <p>
-                    <p class="preco">Por apenas: R$ 40,00</p>
-                    <a href="https://wa.me/5531990617185?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20placa%20de%20acr%C3%ADlico%20branca%20personalizada.">Entre em Contato pelo Whatsapp</a>
-                </div>
-            </div>
-            <div class="janela-modal17" id="janela-modal17">
-                <div class="centralizado" id="modal17" class="visualização_modal">
-                    <button class="fechar17" id="fechar17">X</button>
-                    <h1>Chinelos Personalizados</h1>
-                    <p>
-                        Chinelos personalizados são uma excelente escolha para quem busca conforto e estilo único. Feitos com materiais de qualidade, como borracha ou EVA, oferecem conforto ao caminhar. A personalização permite adicionar designs exclusivos, como nomes, logos, estampas ou frases, tornando-os ideais para eventos especiais como casamentos, festas de aniversário ou brindes corporativos. Além de serem práticos para o dia a dia, os chinelos personalizados são lembranças duráveis e funcionais que garantem uma experiência personalizada e memorável.
-                    <p>
-                    <p class="preco">Por apenas: R$ 35,00</p>
-                    <a href="https://wa.me/5531990617185?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20placa%20de%20acr%C3%ADlico%20branca%20personalizada.">Entre em Contato pelo Whatsapp</a>
-                </div>
-            </div>
-            <div class="janela-modal18" id="janela-modal18">
-                <div class="centralizado" id="modal15" class="visualização_modal">
-                    <button class="fechar18" id="fechar18">X</button>
-                    <h1>Chaveiros Personalizados</h1>
-                    <p>
-                        Os chaveiros personalizados redondos de MDF são uma opção encantadora e única para presentear ou para uso pessoal. Feitos com MDF de alta qualidade, oferecem uma superfície lisa e resistente para personalização. Podem ser customizados com gravuras a laser, impressões coloridas ou decorações variadas, como nomes, logotipos ou designs especiais. Ideal para eventos corporativos, lembranças de casamento, aniversários ou como brindes promocionais, os chaveiros de MDF combinam durabilidade com um toque de elegância natural. Com seu formato circular, são práticos para transportar e adicionam um toque personalizado às chaves ou bolsas, sendo uma escolha versátil e memorável.
-                    <p>
-                    <p class="preco">Por apenas: R$ 40,00</p>
-                    <a href="https://wa.me/5531990617185?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20placa%20de%20acr%C3%ADlico%20branca%20personalizada.">Entre em Contato pelo Whatsapp</a>
-                </div>
-            </div>
-            <div class="janela-modal19" id="janela-modal19">
-                <div class="centralizado" id="modal15" class="visualização_modal">
-                    <button class="fechar19" id="fechar19">X</button>
-                    <h1>Mouse Pad Personalizados</h1>
-                    <p>
-                        Os mouse pads personalizados são acessórios funcionais e personalizáveis que combinam utilidade com estilo. Feitos geralmente com uma base de borracha antiderrapante e uma superfície de tecido ou material sintético, oferecem um suporte confortável para o mouse durante o uso prolongado. A personalização permite incluir designs exclusivos, como logotipos, fotos, padrões ou mensagens especiais, tornando-os ideais para uso pessoal, presentes corporativos ou brindes promocionais. Disponíveis em diferentes formas e tamanhos, os mouse pads personalizados não apenas melhoram a experiência de navegação, mas também destacam-se como itens úteis e personalizados para o ambiente de trabalho ou em casa.
-                    <p>
-                    <p class="preco">Por apenas: R$ 40,00</p>
-                    <a href="https://wa.me/5531990617185?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20placa%20de%20acr%C3%ADlico%20branca%20personalizada.">Entre em Contato pelo Whatsapp</a>
-                </div>
-            </div>
-        </div>
+
+  <div class="login-page">
+<div class="background-shape shape-one"></div>
+<div class="background-shape shape-two"></div>
+
+<main class="login-container">
+
+  <section class="login-card">
+
+    <div class="brand">
+      <div class="brand-icon">GL</div>
     </div>
-    <div class="corpo">
-        <div class="header">
-            <img src="./img/logo.jpeg" alt="imagem" height="200px" width="400px">
-        </div>
-        <nav class="sub_menu">
-            <ul id="menu_horizontal">
-                <li><a href="index.html">Produtos</a></li>
-                <li><a href="contato.html">Contatos</a></li>
-            </ul>
-        </nav>
-        <h2 class="subtitulo">Canecas</h2>
-        <div class="visualizacao" >
-            <div class="card">
-                <img src="./img/branca_porce.jpeg">
-                <div>
-                  <h1>Caneca de Polímero Branca</h1>
-                  <button onclick="abrirModal()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-            <div class="card">
-                <img src="./img/branca_porce.jpeg">
-                <div>
-                  <h1>Caneca de Porcelana Branca</h1>
-                  <button onclick="abrirModal1()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-            <div class="card">
-                <img src="./img/rosa.jpeg">
-                <div>
-                  <h1>Caneca de Porcelana de Alça e Interior Rosa</h1>
-                  <button onclick="abrirModal2()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-            <div class="card">
-                <img src="./img/azul.jpeg">
-                <div>
-                  <h1>Caneca de Porcelana de Alça e Interior Azul   </h1>
-                  <button onclick="abrirModal3()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-            <div class="card">
-                <img src="./img/preta.jpeg">
-                <div>
-                  <h1>Caneca de Porcelana de Alça e Interior Preta</h1>
-                  <button onclick="abrirModal4()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-            <div class="card">
-                <img src="./img/amarelo.jpeg">
-                <div>
-                  <h1>Caneca de Porcelana de Alça e Interior Amarelo</h1>
-                  <button onclick="abrirModal5()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-            <div class="card">
-                <img src="./img/lilas.jpeg">
-                <div>
-                  <h1>Caneca de Porcelana de Alça e Interior Lilas</h1>
-                  <button onclick="abrirModal6()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-            <div class="card">
-                <img src="./img/vermelho.jpeg">
-                <div>
-                  <h1>Caneca de Porcelana de Alça e Interior Vermelho</h1>
-                  <button onclick="abrirModal7()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-            <div class="card">
-                <img src="./img/coracao_vermelho.jpeg">
-                <div>
-                  <h1>Caneca de Porcelana de Alça de Coração Vermelho</h1>
-                  <button onclick="abrirModal8()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-            <div class="card">
-                <img src="./img/coracao_rosa.jpeg">
-                <div>
-                  <h1>Caneca de Porcelana de Alça de Coração Rosa</h1>
-                  <button onclick="abrirModal9()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-            <div class="card">
-                <img src="./img/magica.jpeg">
-                <div>
-                  <h1>Caneca de Porcelana Mágica Preto Fosco</h1>
-                  <button onclick="abrir1Modal()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-        </div>
-        <h2 class="subtitulo">Camisas</h2>
-        <div class="visualizacao">
-            <div class="card">
-                <img src="./img/camisa_infantil.jpg">
-                <div>
-                  <h1>Camisa Branca de Políester Infantil</h1>
-                  <button onclick="abrir2Modal()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-            <div class="card">
-                <img src="./img/camisa_masculina.jpg">
-                <div>
-                  <h1>Camisa Branca de Políester Masculina</h1>
-                  <button onclick="abrir3Modal()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-            <div class="card">
-                <img src="./img/feminina_camisa.jpg">
-                <div>
-                  <h1>Camisa Branca de Políester Feminina</h1>
-                  <button onclick="abrir4Modal()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-            <div class="card">
-                <img src="./img/body.jpg">
-                <div>
-                  <h1>Body Bebê</h1>
-                  <button onclick="abrir5Modal()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-        </div>
-        <h2 class="subtitulo">Placas de Acrílico</h2>
-        <div class="visualizacao" id="copo">
-            <div class="card">
-                <img src="./img/placa_branca.jpg">
-                <div>
-                  <h1>Placa de Acrílico Branca</h1>
-                  <button onclick="abrir6Modal()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-            <div class="card">
-                <img src="./img/placa_transparente.jpg">
-                <div>
-                  <h1>Placa de Acrílico Transparente</h1>
-                  <button onclick="abrir7Modal()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-        </div>
-        <h2 class="subtitulo">Chinelo</h2>
-        <div class="visualizacao" id="copo">
-            <div class="card">
-                <img src="./img/chinelo.jpg">
-                <div>
-                  <h1>Chinelo Personalizado</h1>
-                  <button onclick="abrir8Modal()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-        </div>
-        <h2 class="subtitulo">Chaveiro</h2>
-        <div class="visualizacao" id="copo">
-            <div class="card">
-                <img src="./img/chaveiro.png">
-                <div>
-                  <h1>Chaveiro Redondo Personalizado</h1>
-                  <button onclick="abrir9Modal()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-        </div>
-        <h2 class="subtitulo">Mouse Pad's</h2>
-        <div class="visualizacao" id="copo">
-            <div class="card">
-                <img src="./img/mousepad.png">
-                <div>
-                  <h1>Mouses Pad's</h1>
-                  <button onclick="abrir10Modal()" class="btn">Saiba Mais</button>
-                </div>
-            </div>
-        </div>
+
+    <div class="login-header">
+      <h1>Bem-vindo de volta!</h1>
+      <p>Entre na sua conta para acessar o Gestão Loja.</p>
     </div>
-    <script src="script.js"></script>
+
+    <form id="loginForm">
+
+      <div class="form-group">
+        <label for="loginEmail">E-mail</label>
+
+        <div class="input-wrapper">
+
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+            <path d="m3 7 9 6 9-6"></path>
+          </svg>
+
+          <input
+            type="email"
+            id="loginEmail"
+            placeholder="seu@email.com"
+            autocomplete="email"
+            required
+          >
+
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="loginPassword">Senha</label>
+
+        <div class="input-wrapper">
+
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="4" y="10" width="16" height="11" rx="2"></rect>
+            <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+          </svg>
+
+          <input
+            type="password"
+            id="loginPassword"
+            placeholder="Digite sua senha"
+            autocomplete="current-password"
+            required
+          >
+
+        </div>
+      </div>
+
+      <button type="submit" class="login-button">
+        Entrar
+      </button>
+
+    </form>
+
+    <div id="loginMessage"></div>
+
+    <div class="login-footer">
+      Gestão Loja • Sistema de gerenciamento
+    </div>
+
+  </section>
+
+</main>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
 </body>
 </html>

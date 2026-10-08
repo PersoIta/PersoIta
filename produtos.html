@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Gestão Loja - Produtos</title>
+
+  <link rel="stylesheet" href="styles.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
+</head>
+
+<body data-page="produtos">
+
+  <div id="app" class="app">
+
+    <div id="menu"></div>
+
+    <main class="main">
+
+      <div class="topbar">
+
+        <div>
+          <h1>Produtos</h1>
+          <div
+            class="muted"
+            id="pageSubtitle">
+          </div>
+        </div>
+
+        <div class="user-info">
+
+          <strong id="userName">
+            Usuário
+          </strong>
+
+          <br>
+
+          <span id="userEmail"></span>
+
+        </div>
+
+      </div>
+
+      <div id="content">
+
+        <div class="section">
+
+          <div class="section-head">
+
+            <h2>Produtos cadastrados</h2>
+
+            <button
+              class="btn btn-primary"
+              onclick="newProduct()">
+              + Novo produto
+            </button>
+
+          </div>
+
+          <div
+            id="productsTable"
+            class="loading">
+            Carregando...
+          </div>
+
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <div
+    id="modal"
+    class="modal hidden">
+
+    <div class="modal-card">
+
+      <div class="modal-head">
+
+        <h2 id="modalTitle">
+          Cadastro
+        </h2>
+
+        <button
+          class="close"
+          onclick="closeModal()">
+          ×
+        </button>
+
+      </div>
+
+      <div id="modalContent"></div>
+
+    </div>
+
+  </div>
+
+  <script>
+
+    let products = [];
+    let categories = [];
+
+    async function loadCategories() {
+
+      const result = await db
+        .from("gestao_loja_categorias")
+        .select("id,nome")
+        .order("nome");
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      categories = result.data || [];
+    }
+
+    async function loadProducts() {
+
+      const result = await db
+        .from("gestao_loja_produtos")
+        .select(`
+          id,
+          id_loja,
+          nome,
+          sku,
+          descricao,
+          imagem_principal,
+          categoria_id,
+          unidade_medida,
+          preco_custo,
+          preco_venda,
+          estoque_minimo,
+          ativo,
+          exibir_catalogo,
+          exibir_preco_catalogo,
+          observacoes,
+          created_at,
+          atualizado_em
+        `)
+        .eq("id_loja", currentStore.id_loja)
+        .order("nome");
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      products = result.data || [];
+    }
+
+    async function renderProducts() {
+
+      try {
+
+        await loadProducts();
+
+      } catch (e) {
+
+        $("productsTable").innerHTML =
+          '<div class="message error">' +
+          escapeHtml(e.message) +
+          '</div>';
+
+        return;
+      }
+
+      if (!products.length) {
+
+        $("productsTable").innerHTML =
+          '<div class="empty">' +
+          'Nenhum produto cadastrado.' +
+          '</div>';
+
+        return;
+      }
+
+      $("productsTable").innerHTML = `
+
+        <div class="table-wrap">
+
+          <table>
+
+            <thead>
+
+              <tr>
+
+                <th>Produto</th>
+
+                <th>SKU</th>
+
+                <th>Categoria</th>
+
+                <th>Unidade</th>
+
+                <th>Preço</th>
+
+                <th>Status</th>
+
+                <th></th>
+
+              </tr>
+
+            </thead>
+
+            <tbody>
+
+              ${products.map(function(p) {
+
+                const categoria =
+                  categories.find(function(c) {
+                    return String(c.id) ===
+                      String(p.categoria_id);
+                  });
+
+                return `
+
+                  <tr>
+
+                    <td>
+
+                      <strong>
+                        ${escapeHtml(p.nome)}
+                      </strong>
+
+                      ${
+                        p.descricao
+                          ? `
+                            <br>
+                            <span class="muted">
+                              ${escapeHtml(
+                                p.descricao
+                              )}
+                            </span>
+                          `
+                          : ""
+                      }
+
+                    </td>
+
+                    <td>
+
+                      <strong>
+                        ${escapeHtml(
+                          p.sku || "-"
+                        )}
+                      </strong>
+
+                    </td>
+
+                    <td>
+
+                      ${
+                        categoria
+                          ? escapeHtml(
+                              categoria.nome
+                            )
+                          : "-"
+                      }
+
+                    </td>
+
+                    <td>
+
+                      ${escapeHtml(
+                        p.unidade_medida || "UN"
+                      )}
+
+                    </td>
+
+                    <td>
+
+                      ${money(
+                        p.preco_venda
+                      )}
+
+                    </td>
+
+                    <td>
+
+                      <span
+                        class="badge ${
+                          p.ativo
+                            ? "badge-green"
+                            : "badge-red"
+                        }">
+
+                        ${
+                          p.ativo
+                            ? "Ativo"
+                            : "Inativo"
+                        }
+
+                      </span>
+
+                    </td>
+
+                    <td>
+
+                      <button
+                        class="btn btn-secondary"
+                        onclick="editProduct('${p.id}')">
+
+                        Editar
+
+                      </button>
+
+                    </td>
+
+                  </tr>
+
+                `;
+
+              }).join("")}
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      `;
+
+    }
+
+    function productForm(p = {}) {
+
+      const categoryOptions =
+        categories.map(function(c) {
+
+          return `
+
+            <option
+              value="${c.id}"
+              ${
+                String(
+                  p.categoria_id || ""
+                ) === String(c.id)
+                  ? "selected"
+                  : ""
+              }>
+
+              ${escapeHtml(c.nome)}
+
+            </option>
+
+          `;
+
+        }).join("");
+
+      return `
+
+        <form
+          onsubmit="saveProduct(
+            event,
+            ${
+              p.id
+                ? `'${p.id}'`
+                : "null"
+            }
+          )">
+
+          <div>
+
+            <label>SKU</label>
+
+            <input
+              value="${
+                p.sku
+                  ? escapeHtml(p.sku)
+                  : "Gerado automaticamente"
+              }"
+              readonly>
+
+            <small class="muted">
+
+              O SKU é gerado automaticamente
+              pelo sistema.
+
+            </small>
+
+          </div>
+
+          <div class="grid2">
+
+            <div>
+
+              <label>
+                Nome *
+              </label>
+
+              <input
+                id="p_nome"
+                required
+                value="${escapeHtml(
+                  p.nome || ""
+                )}">
+
+            </div>
+
+            <div>
+
+              <label>
+                Categoria
+              </label>
+
+              <select id="p_categoria">
+
+                <option value="">
+                  Sem categoria
+                </option>
+
+                ${categoryOptions}
+
+              </select>
+
+            </div>
+
+          </div>
+
+          <div>
+
+            <label>
+              Descrição
+            </label>
+
+            <textarea
+              id="p_descricao"
+              rows="3"
+            >${escapeHtml(
+              p.descricao || ""
+            )}</textarea>
+
+          </div>
+
+          <div class="grid2">
+
+            <div>
+
+              <label>
+                Unidade de medida
+              </label>
+
+              <input
+                id="p_unidade"
+                value="${escapeHtml(
+                  p.unidade_medida || "UN"
+                )}">
+
+            </div>
+
+            <div>
+
+              <label>
+                Preço de venda
+              </label>
+
+              <input
+                id="p_preco"
+                type="number"
+                step="0.01"
+                min="0"
+                value="${
+                  p.preco_venda ?? 0
+                }">
+
+            </div>
+
+          </div>
+
+          <div class="grid2">
+
+            <div>
+
+              <label>
+                Preço de custo
+              </label>
+
+              <input
+                id="p_custo"
+                type="number"
+                step="0.01"
+                min="0"
+                value="${
+                  p.preco_custo ?? 0
+                }">
+
+            </div>
+
+            <div>
+
+              <label>
+                Estoque mínimo
+              </label>
+
+              <input
+                id="p_minimo"
+                type="number"
+                step="0.001"
+                min="0"
+                value="${
+                  p.estoque_minimo ?? 0
+                }">
+
+            </div>
+
+          </div>
+
+          <label>
+
+            <input
+              id="p_ativo"
+              type="checkbox"
+              style="width:auto"
+              ${
+                p.ativo !== false
+                  ? "checked"
+                  : ""
+              }>
+
+            Produto ativo
+
+          </label>
+
+          <label>
+
+            <input
+              id="p_catalogo"
+              type="checkbox"
+              style="width:auto"
+              ${
+                p.exibir_catalogo !== false
+                  ? "checked"
+                  : ""
+              }>
+
+            Exibir no catálogo
+
+          </label>
+
+          <label>
+
+            <input
+              id="p_preco_catalogo"
+              type="checkbox"
+              style="width:auto"
+              ${
+                p.exibir_preco_catalogo !== false
+                  ? "checked"
+                  : ""
+              }>
+
+            Exibir preço no catálogo
+
+          </label>
+
+          <div>
+
+            <label>
+              Observações
+            </label>
+
+            <textarea
+              id="p_observacoes"
+              rows="3"
+            >${escapeHtml(
+              p.observacoes || ""
+            )}</textarea>
+
+          </div>
+
+          <button
+            class="btn btn-primary full"
+            type="submit">
+
+            Salvar produto
+
+          </button>
+
+        </form>
+
+      `;
+
+    }
+
+    function newProduct() {
+
+      openModal(
+        "Novo produto",
+        productForm({
+          ativo: true,
+          exibir_catalogo: true,
+          exibir_preco_catalogo: true
+        })
+      );
+
+    }
+
+    function editProduct(id) {
+
+      const p =
+        products.find(function(x) {
+
+          return String(x.id) ===
+            String(id);
+
+        });
+
+      if (!p) {
+
+        alert(
+          "Produto não encontrado."
+        );
+
+        return;
+      }
+
+      openModal(
+        "Editar produto",
+        productForm(p)
+      );
+
+    }
+
+    async function saveProduct(ev, id) {
+
+      ev.preventDefault();
+
+      if (!currentStore) {
+
+        alert(
+          "Não foi possível identificar a loja."
+        );
+
+        return;
+      }
+
+      const payload = {
+
+        id_loja:
+          currentStore.id_loja,
+
+        nome:
+          $("p_nome")
+            .value
+            .trim(),
+
+        categoria_id:
+          $("p_categoria")
+            .value
+            ? Number(
+                $("p_categoria").value
+              )
+            : null,
+
+        descricao:
+          $("p_descricao")
+            .value
+            .trim() || null,
+
+        unidade_medida:
+          $("p_unidade")
+            .value
+            .trim() || "UN",
+
+        preco_venda:
+          Number(
+            $("p_preco").value || 0
+          ),
+
+        preco_custo:
+          Number(
+            $("p_custo").value || 0
+          ),
+
+        estoque_minimo:
+          Number(
+            $("p_minimo").value || 0
+          ),
+
+        ativo:
+          $("p_ativo").checked,
+
+        exibir_catalogo:
+          $("p_catalogo").checked,
+
+        exibir_preco_catalogo:
+          $("p_preco_catalogo").checked,
+
+        observacoes:
+          $("p_observacoes")
+            .value
+            .trim() || null
+
+      };
+
+      let result;
+
+      if (id) {
+
+        result = await db
+          .from("gestao_loja_produtos")
+          .update(payload)
+          .eq("id", id)
+          .eq(
+            "id_loja",
+            currentStore.id_loja
+          );
+
+      } else {
+
+        result = await db
+          .from("gestao_loja_produtos")
+          .insert(payload);
+
+      }
+
+      if (result.error) {
+
+        console.error(
+          "Erro ao salvar produto:",
+          result.error
+        );
+
+        alert(
+          result.error.message
+        );
+
+        return;
+      }
+
+      closeModal();
+
+      await renderProducts();
+
+    }
+
+    document.addEventListener(
+      "DOMContentLoaded",
+      async function() {
+
+        const authenticated =
+          await requireAuth();
+
+        if (!authenticated) {
+          return;
+        }
+
+        const contextLoaded =
+          await loadUserContext();
+
+        if (!contextLoaded) {
+          return;
+        }
+
+        setActiveNav();
+
+        $("pageSubtitle").textContent =
+          "Cadastre e gerencie seus produtos";
+
+        try {
+
+          await loadCategories();
+
+          await renderProducts();
+
+        } catch (e) {
+
+          console.error(e);
+
+          $("productsTable").innerHTML =
+            '<div class="message error">' +
+            escapeHtml(e.message) +
+            '</div>';
+
+        }
+
+      }
+    );
+
+  </script>
+
+</body>
+
+</html>
