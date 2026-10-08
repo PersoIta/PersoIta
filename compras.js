@@ -1,9 +1,13 @@
 let suppliers = [];
+
 let products = [];
+
 let variations = [];
+
 let purchases = [];
 
 let currentPurchaseItems = [];
+
 let editingPurchaseId = null;
 
 function purchaseMoney(value) {
@@ -216,10 +220,8 @@ function renderPurchases() {
   }
 
   if (!purchases.length) {
-
     container.innerHTML = `
       <div class="card">
-
         <h3>
           Nenhuma compra cadastrada
         </h3>
@@ -228,7 +230,6 @@ function renderPurchases() {
           Clique em "+ Nova compra"
           para cadastrar a primeira compra.
         </p>
-
       </div>
     `;
 
@@ -236,7 +237,6 @@ function renderPurchases() {
   }
 
   container.innerHTML = `
-
     <div
       class="card"
       style="
@@ -244,13 +244,9 @@ function renderPurchases() {
         overflow:auto;
       "
     >
-
       <table class="table">
-
         <thead>
-
           <tr>
-
             <th>
               Nº
             </th>
@@ -280,17 +276,13 @@ function renderPurchases() {
             >
               Ações
             </th>
-
           </tr>
-
         </thead>
 
         <tbody>
-
           ${
             purchases.map(
               purchase => {
-
                 const supplier =
                   purchase.gestao_loja_fornecedores;
 
@@ -300,18 +292,14 @@ function renderPurchases() {
                   "Fornecedor não informado";
 
                 return `
-
                   <tr>
-
                     <td>
-
                       <strong>
-                        #${
+                        ${
                           purchase.numero ||
                           purchase.id
                         }
                       </strong>
-
                     </td>
 
                     <td>
@@ -341,19 +329,16 @@ function renderPurchases() {
                     </td>
 
                     <td>
-
                       <strong>
                         ${purchaseMoney(
                           purchase.valor_total
                         )}
                       </strong>
-
                     </td>
 
                     <td
                       style="text-align:right;"
                     >
-
                       <button
                         class="btn btn-secondary"
                         onclick="
@@ -364,31 +349,22 @@ function renderPurchases() {
                       >
                         Visualizar
                       </button>
-
                     </td>
-
                   </tr>
-
                 `;
               }
             ).join("")
           }
-
         </tbody>
-
       </table>
-
     </div>
-
   `;
 }
 
 function buildSupplierOptions(
   selectedId = ""
 ) {
-
   return `
-
     <option value="">
       Selecione o fornecedor
     </option>
@@ -396,7 +372,6 @@ function buildSupplierOptions(
     ${
       suppliers.map(
         supplier => `
-
           <option
             value="${supplier.id}"
             ${
@@ -415,20 +390,16 @@ function buildSupplierOptions(
               supplier.razao_social
             )}
           </option>
-
         `
       ).join("")
     }
-
   `;
 }
 
 function buildPurchaseProductOptions(
   selectedId = ""
 ) {
-
   return `
-
     <option value="">
       Selecione o produto
     </option>
@@ -436,7 +407,6 @@ function buildPurchaseProductOptions(
     ${
       products.map(
         product => `
-
           <option
             value="${product.id}"
             ${
@@ -454,18 +424,14 @@ function buildPurchaseProductOptions(
               product.nome
             )}
           </option>
-
         `
       ).join("")
     }
-
   `;
 }
 
 function buildPurchaseForm() {
-
   return `
-
     <div
       style="
         display:grid;
@@ -473,9 +439,7 @@ function buildPurchaseForm() {
         gap:15px;
       "
     >
-
       <div>
-
         <label>
           Fornecedor
         </label>
@@ -483,15 +447,11 @@ function buildPurchaseForm() {
         <select
           id="purchaseSupplier"
         >
-
           ${buildSupplierOptions()}
-
         </select>
-
       </div>
 
       <div>
-
         <label>
           Data da compra
         </label>
@@ -500,9 +460,7 @@ function buildPurchaseForm() {
           type="date"
           id="purchaseDate"
         >
-
       </div>
-
     </div>
 
     <div
@@ -513,9 +471,7 @@ function buildPurchaseForm() {
         margin-top:15px;
       "
     >
-
       <div>
-
         <label>
           Número da nota fiscal
         </label>
@@ -525,11 +481,9 @@ function buildPurchaseForm() {
           id="purchaseInvoice"
           placeholder="Número da NF"
         >
-
       </div>
 
       <div>
-
         <label>
           Observações
         </label>
@@ -539,9 +493,7 @@ function buildPurchaseForm() {
           id="purchaseNotes"
           placeholder="Observações da compra"
         >
-
       </div>
-
     </div>
 
     <div
@@ -549,7 +501,6 @@ function buildPurchaseForm() {
         margin-top:25px;
       "
     >
-
       <div
         style="
           display:flex;
@@ -559,9 +510,7 @@ function buildPurchaseForm() {
           margin-bottom:15px;
         "
       >
-
         <div>
-
           <h3
             style="margin:0;"
           >
@@ -572,7 +521,6 @@ function buildPurchaseForm() {
             Adicione quantos produtos quiser
             nesta mesma compra.
           </div>
-
         </div>
 
         <button
@@ -582,13 +530,11 @@ function buildPurchaseForm() {
         >
           + Adicionar produto
         </button>
-
       </div>
 
       <div
         id="purchaseItems"
       ></div>
-
     </div>
 
     <div
@@ -599,9 +545,7 @@ function buildPurchaseForm() {
         margin-top:20px;
       "
     >
-
       <div>
-
         <label>
           Desconto
         </label>
@@ -614,11 +558,9 @@ function buildPurchaseForm() {
           step="0.01"
           oninput="updatePurchaseSummary()"
         >
-
       </div>
 
       <div>
-
         <label>
           Frete
         </label>
@@ -631,9 +573,7 @@ function buildPurchaseForm() {
           step="0.01"
           oninput="updatePurchaseSummary()"
         >
-
       </div>
-
     </div>
 
     <div
@@ -644,11 +584,9 @@ function buildPurchaseForm() {
         border-radius:8px;
       "
     >
-
       <div
         class="order-summary-row"
       >
-
         <span>
           Subtotal
         </span>
@@ -658,13 +596,11 @@ function buildPurchaseForm() {
         >
           R$ 0,00
         </strong>
-
       </div>
 
       <div
         class="order-summary-row"
       >
-
         <span>
           Frete
         </span>
@@ -674,13 +610,11 @@ function buildPurchaseForm() {
         >
           R$ 0,00
         </strong>
-
       </div>
 
       <div
         class="order-summary-row"
       >
-
         <span>
           Desconto
         </span>
@@ -690,7 +624,6 @@ function buildPurchaseForm() {
         >
           R$ 0,00
         </strong>
-
       </div>
 
       <hr>
@@ -699,7 +632,6 @@ function buildPurchaseForm() {
         class="order-summary-row"
         style="font-size:20px;"
       >
-
         <strong>
           Total
         </strong>
@@ -709,9 +641,7 @@ function buildPurchaseForm() {
         >
           R$ 0,00
         </strong>
-
       </div>
-
     </div>
 
     <div
@@ -722,7 +652,6 @@ function buildPurchaseForm() {
         margin-top:25px;
       "
     >
-
       <button
         type="button"
         class="btn btn-secondary"
@@ -738,14 +667,11 @@ function buildPurchaseForm() {
       >
         Salvar compra
       </button>
-
     </div>
-
   `;
 }
 
 function openNewPurchase() {
-
   editingPurchaseId =
     null;
 
@@ -787,9 +713,7 @@ function openNewPurchase() {
 }
 
 function addPurchaseItem() {
-
   currentPurchaseItems.push({
-
     produto_id:
       "",
 
@@ -804,7 +728,6 @@ function addPurchaseItem() {
 
     subtotal:
       0
-
   });
 
   renderPurchaseItems();
@@ -815,7 +738,6 @@ function addPurchaseItem() {
 function removePurchaseItem(
   index
 ) {
-
   currentPurchaseItems.splice(
     index,
     1
@@ -827,7 +749,6 @@ function removePurchaseItem(
 }
 
 function renderPurchaseItems() {
-
   const container =
     document.getElementById(
       "purchaseItems"
@@ -840,9 +761,7 @@ function renderPurchaseItems() {
   if (
     !currentPurchaseItems.length
   ) {
-
     container.innerHTML = `
-
       <div
         style="
           padding:20px;
@@ -851,13 +770,10 @@ function renderPurchaseItems() {
           border-radius:8px;
         "
       >
-
         <span class="muted">
           Nenhum produto adicionado.
         </span>
-
       </div>
-
     `;
 
     return;
@@ -869,7 +785,6 @@ function renderPurchaseItems() {
         item,
         index
       ) => {
-
         const productVariations =
           variations.filter(
             variation =>
@@ -894,7 +809,6 @@ function renderPurchaseItems() {
           );
 
         return `
-
           <div
             style="
               padding:15px;
@@ -903,7 +817,6 @@ function renderPurchaseItems() {
               margin-bottom:15px;
             "
           >
-
             <div
               style="
                 display:grid;
@@ -912,9 +825,7 @@ function renderPurchaseItems() {
                 align-items:end;
               "
             >
-
               <div>
-
                 <label>
                   Produto
                 </label>
@@ -927,17 +838,13 @@ function renderPurchaseItems() {
                     )
                   "
                 >
-
                   ${buildPurchaseProductOptions(
                     item.produto_id
                   )}
-
                 </select>
-
               </div>
 
               <div>
-
                 <label>
                   Variação
                 </label>
@@ -955,7 +862,6 @@ function renderPurchaseItems() {
                       : ""
                   }
                 >
-
                   <option value="">
                     ${
                       productVariations.length
@@ -967,7 +873,6 @@ function renderPurchaseItems() {
                   ${
                     productVariations.map(
                       variation => `
-
                         <option
                           value="${variation.id}"
                           ${
@@ -985,17 +890,13 @@ function renderPurchaseItems() {
                             variation.nome
                           )}
                         </option>
-
                       `
                     ).join("")
                   }
-
                 </select>
-
               </div>
 
               <div>
-
                 <label>
                   Quantidade
                 </label>
@@ -1012,11 +913,9 @@ function renderPurchaseItems() {
                     )
                   "
                 >
-
               </div>
 
               <div>
-
                 <label>
                   Preço de custo
                 </label>
@@ -1033,7 +932,6 @@ function renderPurchaseItems() {
                     )
                   "
                 >
-
               </div>
 
               <button
@@ -1047,7 +945,6 @@ function renderPurchaseItems() {
               >
                 ×
               </button>
-
             </div>
 
             <div
@@ -1057,18 +954,14 @@ function renderPurchaseItems() {
                 margin-top:10px;
               "
             >
-
               <strong>
                 Subtotal:
                 ${purchaseMoney(
                   subtotal
                 )}
               </strong>
-
             </div>
-
           </div>
-
         `;
       }
     ).join("");
@@ -1078,7 +971,6 @@ function changePurchaseProduct(
   index,
   productId
 ) {
-
   const item =
     currentPurchaseItems[
       index
@@ -1121,7 +1013,6 @@ function changePurchaseVariation(
   index,
   variationId
 ) {
-
   const item =
     currentPurchaseItems[
       index
@@ -1132,10 +1023,9 @@ function changePurchaseVariation(
   }
 
   item.variacao_id =
-    variationId;
+    variationId || "";
 
   if (variationId) {
-
     const variation =
       variations.find(
         variation =>
@@ -1148,16 +1038,12 @@ function changePurchaseVariation(
       );
 
     if (variation) {
-
       item.preco_unitario =
         Number(
           variation.preco_custo
         ) || 0;
-
     }
-
   } else {
-
     const product =
       products.find(
         product =>
@@ -1170,12 +1056,10 @@ function changePurchaseVariation(
       );
 
     if (product) {
-
       item.preco_unitario =
         Number(
           product.preco_custo
         ) || 0;
-
     }
   }
 
@@ -1188,7 +1072,6 @@ function changePurchaseQuantity(
   index,
   value
 ) {
-
   if (
     !currentPurchaseItems[
       index
@@ -1211,7 +1094,6 @@ function changePurchasePrice(
   index,
   value
 ) {
-
   if (
     !currentPurchaseItems[
       index
@@ -1231,12 +1113,10 @@ function changePurchasePrice(
 }
 
 function updatePurchaseSummary() {
-
   let subtotal = 0;
 
   currentPurchaseItems.forEach(
     item => {
-
       subtotal +=
         (
           Number(
@@ -1248,7 +1128,6 @@ function updatePurchaseSummary() {
             item.preco_unitario
           ) || 0
         );
-
     }
   );
 
@@ -1268,7 +1147,6 @@ function updatePurchaseSummary() {
     discount;
 
   const values = {
-
     purchaseSummarySubtotal:
       subtotal,
 
@@ -1283,41 +1161,34 @@ function updatePurchaseSummary() {
         total,
         0
       )
-
   };
 
   Object.keys(
     values
   ).forEach(
     id => {
-
       const element =
         document.getElementById(
           id
         );
 
       if (element) {
-
         element.textContent =
           purchaseMoney(
             values[id]
           );
-
       }
-
     }
   );
 }
 
 async function savePurchase() {
-
   const supplierId =
     document.getElementById(
       "purchaseSupplier"
     ).value;
 
   if (!supplierId) {
-
     alert(
       "Selecione um fornecedor."
     );
@@ -1328,7 +1199,6 @@ async function savePurchase() {
   if (
     !currentPurchaseItems.length
   ) {
-
     alert(
       "Adicione pelo menos um produto à compra."
     );
@@ -1339,9 +1209,7 @@ async function savePurchase() {
   for (
     const item of currentPurchaseItems
   ) {
-
     if (!item.produto_id) {
-
       alert(
         "Selecione o produto de todos os itens."
       );
@@ -1353,7 +1221,6 @@ async function savePurchase() {
       !item.quantidade ||
       item.quantidade <= 0
     ) {
-
       alert(
         "Informe uma quantidade válida para todos os produtos."
       );
@@ -1366,7 +1233,6 @@ async function savePurchase() {
         item.preco_unitario
       ) < 0
     ) {
-
       alert(
         "O preço de custo não pode ser negativo."
       );
@@ -1381,7 +1247,6 @@ async function savePurchase() {
         total,
         item
       ) => {
-
         return (
           total +
           (
@@ -1395,7 +1260,6 @@ async function savePurchase() {
             ) || 0
           )
         );
-
       },
       0
     );
@@ -1419,7 +1283,6 @@ async function savePurchase() {
     );
 
   const purchaseData = {
-
     id_loja:
       currentStore.id_loja,
 
@@ -1457,7 +1320,6 @@ async function savePurchase() {
       document.getElementById(
         "purchaseNotes"
       ).value.trim()
-
   };
 
   const {
@@ -1474,7 +1336,6 @@ async function savePurchase() {
     .single();
 
   if (error) {
-
     alert(
       "Erro ao salvar compra:\n" +
       error.message
@@ -1486,7 +1347,6 @@ async function savePurchase() {
   const itemsData =
     currentPurchaseItems.map(
       item => ({
-
         id_loja:
           currentStore.id_loja,
 
@@ -1516,15 +1376,12 @@ async function savePurchase() {
           ),
 
         subtotal:
-          (
-            Number(
-              item.quantidade
-            ) *
-            Number(
-              item.preco_unitario
-            )
+          Number(
+            item.quantidade
+          ) *
+          Number(
+            item.preco_unitario
           )
-
       })
     );
 
@@ -1539,7 +1396,6 @@ async function savePurchase() {
     );
 
   if (itemsError) {
-
     await db
       .from(
         "gestao_loja_compras"
@@ -1570,7 +1426,6 @@ async function savePurchase() {
 async function viewPurchase(
   purchaseId
 ) {
-
   const {
     data: purchase,
     error: purchaseError
@@ -1597,7 +1452,6 @@ async function viewPurchase(
     .single();
 
   if (purchaseError) {
-
     alert(
       "Erro ao carregar compra:\n" +
       purchaseError.message
@@ -1633,7 +1487,6 @@ async function viewPurchase(
     .order("id");
 
   if (itemsError) {
-
     alert(
       "Erro ao carregar itens:\n" +
       itemsError.message
@@ -1667,7 +1520,6 @@ async function viewPurchase(
   const itemsHtml =
     (items || []).map(
       item => {
-
         const product =
           item.gestao_loja_produtos;
 
@@ -1675,11 +1527,8 @@ async function viewPurchase(
           item.gestao_loja_produtos_variacoes;
 
         return `
-
           <tr>
-
             <td>
-
               ${escapeHtml(
                 product?.nome ||
                 "-"
@@ -1687,17 +1536,18 @@ async function viewPurchase(
 
               ${
                 variation?.nome
-                  ? `
-                    <br>
-                    <small class="muted">
-                      ${escapeHtml(
-                        variation.nome
-                      )}
-                    </small>
-                  `
+                  ?
+                    `
+                      <br>
+
+                      <small class="muted">
+                        ${escapeHtml(
+                          variation.nome
+                        )}
+                      </small>
+                    `
                   : ""
               }
-
             </td>
 
             <td>
@@ -1717,9 +1567,7 @@ async function viewPurchase(
                 item.subtotal
               )}
             </td>
-
           </tr>
-
         `;
       }
     ).join("");
@@ -1727,7 +1575,6 @@ async function viewPurchase(
   document.getElementById(
     "modalContent"
   ).innerHTML = `
-
     <div
       style="
         display:grid;
@@ -1735,15 +1582,12 @@ async function viewPurchase(
         gap:20px;
       "
     >
-
       <div class="card">
-
         <h3>
           Dados da compra
         </h3>
 
         <p>
-
           <strong>
             Número:
           </strong>
@@ -1752,11 +1596,9 @@ async function viewPurchase(
             purchase.numero ||
             purchase.id
           }
-
         </p>
 
         <p>
-
           <strong>
             Data:
           </strong>
@@ -1764,11 +1606,9 @@ async function viewPurchase(
           ${formatPurchaseDate(
             purchase.data_compra
           )}
-
         </p>
 
         <p>
-
           <strong>
             Status:
           </strong>
@@ -1777,11 +1617,9 @@ async function viewPurchase(
             purchase.status ||
             "Pendente"
           )}
-
         </p>
 
         <p>
-
           <strong>
             Nota fiscal:
           </strong>
@@ -1790,61 +1628,46 @@ async function viewPurchase(
             purchase.numero_nota_fiscal ||
             "-"
           )}
-
         </p>
-
       </div>
 
       <div class="card">
-
         <h3>
           Fornecedor
         </h3>
 
         <p>
-
           <strong>
-
             ${escapeHtml(
               supplier?.nome_fantasia ||
               supplier?.razao_social ||
               "Fornecedor não informado"
             )}
-
           </strong>
-
         </p>
 
         <p>
-
           ${escapeHtml(
             supplier?.cpf_cnpj ||
             ""
           )}
-
         </p>
 
         <p>
-
           ${escapeHtml(
             supplier?.telefone ||
             supplier?.whatsapp ||
             ""
           )}
-
         </p>
 
         <p>
-
           ${escapeHtml(
             supplier?.email ||
             ""
           )}
-
         </p>
-
       </div>
-
     </div>
 
     <div
@@ -1854,7 +1677,6 @@ async function viewPurchase(
         overflow:auto;
       "
     >
-
       <h3>
         Produtos
       </h3>
@@ -1865,11 +1687,8 @@ async function viewPurchase(
           margin-top:15px;
         "
       >
-
         <thead>
-
           <tr>
-
             <th>
               Produto
             </th>
@@ -1885,19 +1704,13 @@ async function viewPurchase(
             <th>
               Subtotal
             </th>
-
           </tr>
-
         </thead>
 
         <tbody>
-
           ${itemsHtml}
-
         </tbody>
-
       </table>
-
     </div>
 
     <div
@@ -1908,11 +1721,9 @@ async function viewPurchase(
         margin-left:auto;
       "
     >
-
       <div
         class="order-summary-row"
       >
-
         <span>
           Subtotal
         </span>
@@ -1922,13 +1733,11 @@ async function viewPurchase(
             purchase.subtotal
           )}
         </strong>
-
       </div>
 
       <div
         class="order-summary-row"
       >
-
         <span>
           Frete
         </span>
@@ -1938,13 +1747,11 @@ async function viewPurchase(
             purchase.frete
           )}
         </strong>
-
       </div>
 
       <div
         class="order-summary-row"
       >
-
         <span>
           Desconto
         </span>
@@ -1954,7 +1761,6 @@ async function viewPurchase(
             purchase.desconto
           )}
         </strong>
-
       </div>
 
       <hr>
@@ -1965,7 +1771,6 @@ async function viewPurchase(
           font-size:20px;
         "
       >
-
         <strong>
           Total
         </strong>
@@ -1975,22 +1780,18 @@ async function viewPurchase(
             purchase.valor_total
           )}
         </strong>
-
       </div>
-
     </div>
 
     ${
       purchase.observacoes
         ? `
-
           <div
             class="card"
             style="
               margin-top:20px;
             "
           >
-
             <h3>
               Observações
             </h3>
@@ -2001,15 +1802,11 @@ async function viewPurchase(
                 white-space:pre-wrap;
               "
             >
-
               ${escapeHtml(
                 purchase.observacoes
               )}
-
             </div>
-
           </div>
-
         `
         : ""
     }
@@ -2023,13 +1820,11 @@ async function viewPurchase(
         flex-wrap:wrap;
       "
     >
-
       ${
         isPurchasePending(
           purchase
         )
           ? `
-
             <button
               class="btn btn-secondary"
               onclick="
@@ -2064,7 +1859,6 @@ async function viewPurchase(
             >
               Cancelar compra
             </button>
-
           `
           : ""
       }
@@ -2075,16 +1869,13 @@ async function viewPurchase(
       >
         Fechar
       </button>
-
     </div>
-
   `;
 }
 
 async function editPurchase(
   purchaseId
 ) {
-
   const {
     data: purchase,
     error: purchaseError
@@ -2100,7 +1891,6 @@ async function editPurchase(
     .single();
 
   if (purchaseError) {
-
     alert(
       "Erro ao carregar compra:\n" +
       purchaseError.message
@@ -2114,7 +1904,6 @@ async function editPurchase(
       purchase
     )
   ) {
-
     alert(
       "Somente compras pendentes podem ser editadas."
     );
@@ -2137,7 +1926,6 @@ async function editPurchase(
     .order("id");
 
   if (itemsError) {
-
     alert(
       "Erro ao carregar itens:\n" +
       itemsError.message
@@ -2152,7 +1940,6 @@ async function editPurchase(
   currentPurchaseItems =
     (items || []).map(
       item => ({
-
         produto_id:
           item.produto_id,
 
@@ -2174,7 +1961,6 @@ async function editPurchase(
           Number(
             item.subtotal
           )
-
       })
     );
 
@@ -2248,14 +2034,12 @@ async function editPurchase(
 async function updatePurchase(
   purchaseId
 ) {
-
   const supplierId =
     document.getElementById(
       "purchaseSupplier"
     ).value;
 
   if (!supplierId) {
-
     alert(
       "Selecione um fornecedor."
     );
@@ -2266,7 +2050,6 @@ async function updatePurchase(
   if (
     !currentPurchaseItems.length
   ) {
-
     alert(
       "Adicione pelo menos um produto."
     );
@@ -2277,9 +2060,7 @@ async function updatePurchase(
   for (
     const item of currentPurchaseItems
   ) {
-
     if (!item.produto_id) {
-
       alert(
         "Selecione o produto de todos os itens."
       );
@@ -2291,7 +2072,6 @@ async function updatePurchase(
       !item.quantidade ||
       item.quantidade <= 0
     ) {
-
       alert(
         "Informe uma quantidade válida."
       );
@@ -2306,7 +2086,6 @@ async function updatePurchase(
         total,
         item
       ) => {
-
         return (
           total +
           Number(
@@ -2316,7 +2095,6 @@ async function updatePurchase(
             item.preco_unitario
           )
         );
-
       },
       0
     );
@@ -2340,7 +2118,6 @@ async function updatePurchase(
     );
 
   const purchaseData = {
-
     fornecedor_id:
       Number(
         supplierId
@@ -2372,7 +2149,6 @@ async function updatePurchase(
       document.getElementById(
         "purchaseNotes"
       ).value.trim()
-
   };
 
   const {
@@ -2390,7 +2166,6 @@ async function updatePurchase(
     );
 
   if (error) {
-
     alert(
       "Erro ao atualizar compra:\n" +
       error.message
@@ -2412,7 +2187,6 @@ async function updatePurchase(
     );
 
   if (deleteError) {
-
     alert(
       "Erro ao atualizar os itens:\n" +
       deleteError.message
@@ -2424,7 +2198,6 @@ async function updatePurchase(
   const itemsData =
     currentPurchaseItems.map(
       item => ({
-
         id_loja:
           currentStore.id_loja,
 
@@ -2460,7 +2233,6 @@ async function updatePurchase(
           Number(
             item.preco_unitario
           )
-
       })
     );
 
@@ -2475,7 +2247,6 @@ async function updatePurchase(
     );
 
   if (insertError) {
-
     alert(
       "Erro ao salvar os novos itens:\n" +
       insertError.message
@@ -2496,7 +2267,6 @@ async function updatePurchase(
 async function finalizePurchase(
   purchaseId
 ) {
-
   const purchase =
     purchases.find(
       item =>
@@ -2517,7 +2287,6 @@ async function finalizePurchase(
       purchase
     )
   ) {
-
     alert(
       "Esta compra não está pendente."
     );
@@ -2554,7 +2323,6 @@ async function finalizePurchase(
   );
 
   if (error) {
-
     alert(
       "Erro ao finalizar compra:\n" +
       error.message
@@ -2573,7 +2341,6 @@ async function finalizePurchase(
 async function cancelPurchase(
   purchaseId
 ) {
-
   const purchase =
     purchases.find(
       item =>
@@ -2594,7 +2361,6 @@ async function cancelPurchase(
       purchase
     )
   ) {
-
     alert(
       "Somente compras pendentes podem ser canceladas."
     );
@@ -2630,7 +2396,6 @@ async function cancelPurchase(
     );
 
   if (error) {
-
     alert(
       "Erro ao cancelar compra:\n" +
       error.message
@@ -2649,9 +2414,7 @@ async function cancelPurchase(
 document.addEventListener(
   "DOMContentLoaded",
   async function() {
-
     try {
-
       const authenticated =
         await requireAuth();
 
@@ -2676,26 +2439,19 @@ document.addEventListener(
         );
 
       if (subtitle) {
-
         subtitle.textContent =
           "Gerencie as compras da loja";
-
       }
 
       await Promise.all([
-
         loadSuppliers(),
-
         loadPurchaseProducts(),
-
         loadPurchaseVariations()
-
       ]);
 
       await loadPurchases();
 
     } catch (error) {
-
       console.error(
         "Erro na página de compras:",
         error
@@ -2707,11 +2463,8 @@ document.addEventListener(
         );
 
       if (container) {
-
         container.innerHTML = `
-
           <div class="card">
-
             <h3>
               Erro ao carregar a página
             </h3>
@@ -2722,14 +2475,9 @@ document.addEventListener(
                 "Erro desconhecido."
               )}
             </p>
-
           </div>
-
         `;
-
       }
-
     }
-
   }
 );

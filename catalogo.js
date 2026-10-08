@@ -68,16 +68,29 @@ async function getCatalogStoreId() {
 
 async function setupCatalogAccess() {
   try {
+    /*
+     * Esconde o menu imediatamente ao carregar a página,
+     * evitando qualquer "flash" antes de sabermos se o
+     * visitante está autenticado.
+     */
+    const menu =
+      document.getElementById("menu");
+
+    if (menu) {
+      menu.style.display = "none";
+    }
+
     const sessionResult =
       await db.auth.getSession();
 
     const session =
       sessionResult.data?.session || null;
 
-    const menu =
-      document.getElementById("menu");
-
     if (session) {
+      /*
+       * Visitante autenticado (dono da loja / equipe):
+       * mostra o menu e carrega o contexto do usuário.
+       */
       if (menu) {
         menu.style.display = "";
       }
@@ -94,8 +107,12 @@ async function setupCatalogAccess() {
         await loadUserContext();
       }
     } else {
+      /*
+       * Visitante NÃO autenticado (cliente do catálogo):
+       * remove o menu do DOM, deixando apenas o catálogo.
+       */
       if (menu) {
-        menu.style.display = "none";
+        menu.remove();
       }
     }
 

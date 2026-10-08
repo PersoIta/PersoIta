@@ -58,6 +58,33 @@ function formatDate(value) {
   return date.toLocaleDateString("pt-BR");
 }
 
+/**
+ * Pedido "Novo": chegou do catálogo público,
+ * ainda não foi aceito pela loja.
+ * Ações disponíveis: apenas "Aceitar".
+ */
+function isNew(order) {
+  if (!order) {
+    return false;
+  }
+
+  const status = String(
+    order.status || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  return (
+    status === "novo" ||
+    status === "new"
+  );
+}
+
+/**
+ * Pedido "Pendente": já foi aceito pela loja,
+ * aguardando confirmação (movimentação de estoque).
+ * Ações disponíveis: Editar, Confirmar, Cancelar.
+ */
 function isPending(order) {
   if (!order) {
     return false;
@@ -1461,12 +1488,6 @@ async function saveOrder() {
       return;
     }
 
-    /*
-     * Atualiza novamente o pedido depois dos itens.
-     * Isso garante que qualquer trigger ou alteração
-     * causada pela atualização dos itens não deixe
-     * o valor_total antigo.
-     */
     const {
       error: finalUpdateError
     } = await db
@@ -1601,11 +1622,6 @@ async function saveOrder() {
     return;
   }
 
-  /*
-   * Garante também que o pedido recém-criado
-   * fique com o valor_total correto depois da
-   * inserção dos itens.
-   */
   const {
     error: finalInsertUpdateError
   } = await db
@@ -2060,28 +2076,17 @@ async function viewOrder(
       </button>
 
       ${
-        isPending(order)
+        isNew(order)
           ? `
-            <button
-              class="btn btn-secondary"
-              onclick="
-                editOrder(
-                  ${order.id}
-                )
-              "
-            >
-              Editar
-            </button>
-
             <button
               class="btn btn-primary"
               onclick="
-                confirmOrder(
+                acceptOrder(
                   ${order.id}
                 )
               "
             >
-              Confirmar pedido
+              ✓ Aceitar pedido
             </button>
 
             <button
@@ -2095,7 +2100,42 @@ async function viewOrder(
               Cancelar pedido
             </button>
           `
-          : ""
+          : isPending(order)
+            ? `
+              <button
+                class="btn btn-secondary"
+                onclick="
+                  editOrder(
+                    ${order.id}
+                  )
+                "
+              >
+                Editar
+              </button>
+
+              <button
+                class="btn btn-primary"
+                onclick="
+                  confirmOrder(
+                    ${order.id}
+                  )
+                "
+              >
+                Confirmar pedido
+              </button>
+
+              <button
+                class="btn btn-danger"
+                onclick="
+                  cancelOrder(
+                    ${order.id}
+                  )
+                "
+              >
+                Cancelar pedido
+              </button>
+            `
+            : ""
       }
 
       <button
@@ -2106,6 +2146,83 @@ async function viewOrder(
       </button>
     </div>
   `;
+}
+
+/**
+ * Aceita um pedido novo: muda o status de "Novo" → "Pendente".
+ * Depois disso, o pedido passa a ter as ações normais
+ * (Editar, Confirmar, Cancelar).
+ */
+async function acceptOrder(orderId) {
+  const {
+    data: order,
+    error: orderError
+  } = await db
+    .from("gestao_loja_pedidos")
+    .select("*")
+    .eq("id", orderId)
+    .eq("id_loja", currentStore.id_loja)
+    .single();
+
+  if (orderError) {
+    alert(
+      "Erro ao carregar pedido:\n" +
+      orderError.message
+    );
+    return;
+  }
+
+  if (!order) {
+    alert("Pedido não encontrado.");
+    return;
+  }
+
+  if (!isNew(order)) {
+    alert(
+      "Este pedido já foi aceito.\n\n" +
+      "Status atual: " +
+      (order.status || "não informado")
+    );
+    return;
+  }
+
+  const confirmed = confirm(
+    `Deseja aceitar o pedido #${
+      order.numero || order.id
+    }?\n\n` +
+    `Valor: ${orderMoney(order.valor_total)}\n\n` +
+    `Ao aceitar, o pedido passará para "Pendente" ` +
+    `e você poderá editá-lo e confirmá-lo.`
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  const { error } = await db
+    .from("gestao_loja_pedidos")
+    .update({
+      status: "Pendente"
+    })
+    .eq("id", orderId)
+    .eq("id_loja", currentStore.id_loja);
+
+  if (error) {
+    alert(
+      "Erro ao aceitar pedido:\n" +
+      error.message
+    );
+    return;
+  }
+
+  closeModal();
+
+  await loadOrders();
+
+  alert(
+    "Pedido aceito com sucesso.\n\n" +
+    "Agora você pode editá-lo ou confirmá-lo."
+  );
 }
 
 async function editOrder(
@@ -2333,6 +2450,12 @@ async function confirmOrder(
       (
         order.status ||
         "não informado"
+      ) +
+      "\n\n" +
+      (
+        isNew(order)
+          ? 'Aceite o pedido primeiro antes de confirmá-lo.'
+          : ""
       )
     );
     return;
@@ -2421,9 +2544,12 @@ async function cancelOrder(
     return;
   }
 
-  if (!isPending(order)) {
+  if (
+    !isPending(order) &&
+    !isNew(order)
+  ) {
     alert(
-      "Somente pedidos pendentes podem ser cancelados.\n\n" +
+      "Somente pedidos novos ou pendentes podem ser cancelados.\n\n" +
       "Status atual: " +
       (
         order.status ||
