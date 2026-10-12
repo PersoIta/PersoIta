@@ -430,6 +430,365 @@ function buildPurchaseProductOptions(
   `;
 }
 
+/* =========================================================
+   CADASTRO DE FORNECEDOR (mesmo modelo do estoque.html)
+   ========================================================= */
+function openSupplierForm() {
+  openModal(
+    "Cadastrar fornecedor",
+    `
+      <form onsubmit="saveSupplier(event)">
+
+        <div class="grid2">
+
+          <div>
+            <label>
+              Razão social *
+            </label>
+            <input id="s_razao_social" required>
+          </div>
+
+          <div>
+            <label>
+              Nome fantasia
+            </label>
+            <input id="s_nome_fantasia">
+          </div>
+
+        </div>
+
+        <div class="grid2">
+
+          <div>
+            <label>
+              CPF / CNPJ
+            </label>
+            <input id="s_cpf_cnpj">
+          </div>
+
+          <div>
+            <label>
+              Contato responsável
+            </label>
+            <input id="s_contato_responsavel">
+          </div>
+
+        </div>
+
+        <div class="grid2">
+
+          <div>
+            <label>
+              E-mail
+            </label>
+            <input id="s_email" type="email">
+          </div>
+
+          <div>
+            <label>
+              Telefone
+            </label>
+            <input id="s_telefone">
+          </div>
+
+        </div>
+
+        <div class="grid2">
+
+          <div>
+            <label>
+              WhatsApp
+            </label>
+            <input id="s_whatsapp">
+          </div>
+
+          <div>
+            <label>
+              CEP
+            </label>
+            <input id="s_cep">
+          </div>
+
+        </div>
+
+        <div class="grid2">
+
+          <div>
+            <label>
+              Endereço
+            </label>
+            <input id="s_endereco">
+          </div>
+
+          <div>
+            <label>
+              Número
+            </label>
+            <input id="s_numero">
+          </div>
+
+        </div>
+
+        <div class="grid2">
+
+          <div>
+            <label>
+              Complemento
+            </label>
+            <input id="s_complemento">
+          </div>
+
+          <div>
+            <label>
+              Bairro
+            </label>
+            <input id="s_bairro">
+          </div>
+
+        </div>
+
+        <div class="grid2">
+
+          <div>
+            <label>
+              Cidade
+            </label>
+            <input id="s_cidade">
+          </div>
+
+          <div>
+            <label>
+              Estado
+            </label>
+            <input id="s_estado" maxlength="2">
+          </div>
+
+        </div>
+
+        <label>
+          Observações
+        </label>
+
+        <textarea id="s_observacoes" rows="3"></textarea>
+
+        <button
+          class="btn btn-primary full"
+          type="submit">
+          Cadastrar fornecedor
+        </button>
+
+      </form>
+    `
+  );
+}
+
+async function saveSupplier(ev) {
+  ev.preventDefault();
+
+  const razaoSocial =
+    $("s_razao_social")
+      .value
+      .trim();
+
+  const nomeFantasia =
+    $("s_nome_fantasia")
+      .value
+      .trim();
+
+  const cpfCnpj =
+    $("s_cpf_cnpj")
+      .value
+      .trim();
+
+  const contatoResponsavel =
+    $("s_contato_responsavel")
+      .value
+      .trim();
+
+  const email =
+    $("s_email")
+      .value
+      .trim();
+
+  const telefone =
+    $("s_telefone")
+      .value
+      .trim();
+
+  const whatsapp =
+    $("s_whatsapp")
+      .value
+      .trim();
+
+  const cep =
+    $("s_cep")
+      .value
+      .trim();
+
+  const endereco =
+    $("s_endereco")
+      .value
+      .trim();
+
+  const numero =
+    $("s_numero")
+      .value
+      .trim();
+
+  const complemento =
+    $("s_complemento")
+      .value
+      .trim();
+
+  const bairro =
+    $("s_bairro")
+      .value
+      .trim();
+
+  const cidade =
+    $("s_cidade")
+      .value
+      .trim();
+
+  const estado =
+    $("s_estado")
+      .value
+      .trim()
+      .toUpperCase();
+
+  const observacoes =
+    $("s_observacoes")
+      .value
+      .trim();
+
+  if (!razaoSocial) {
+    alert("Informe a razão social.");
+    return;
+  }
+
+  try {
+    const result =
+      await db
+        .from("gestao_loja_fornecedores")
+        .insert({
+          id_loja:
+            currentStore.id_loja,
+
+          razao_social:
+            razaoSocial,
+
+          nome_fantasia:
+            nomeFantasia || null,
+
+          cpf_cnpj:
+            cpfCnpj || null,
+
+          email:
+            email || null,
+
+          telefone:
+            telefone || null,
+
+          whatsapp:
+            whatsapp || null,
+
+          contato_responsavel:
+            contatoResponsavel || null,
+
+          cep:
+            cep || null,
+
+          endereco:
+            endereco || null,
+
+          numero:
+            numero || null,
+
+          complemento:
+            complemento || null,
+
+          bairro:
+            bairro || null,
+
+          cidade:
+            cidade || null,
+
+          estado:
+            estado || null,
+
+          observacoes:
+            observacoes || null,
+
+          ativo:
+            true
+        })
+        .select(`
+          id,
+          razao_social,
+          nome_fantasia,
+          ativo
+        `)
+        .single();
+
+    if (result.error) {
+      throw result.error;
+    }
+
+    const newSupplier =
+      result.data;
+
+    suppliers.push(newSupplier);
+
+    suppliers.sort(function(a, b) {
+      const nameA =
+        a.nome_fantasia ||
+        a.razao_social ||
+        "";
+
+      const nameB =
+        b.nome_fantasia ||
+        b.razao_social ||
+        "";
+
+      return nameA.localeCompare(
+        nameB,
+        "pt-BR"
+      );
+    });
+
+    closeModal();
+
+    // Se o usuário já estava com o modal de compra aberto,
+    // apenas recarrega a lista de fornecedores.
+    // Caso contrário, abre a nova compra já com ele selecionado.
+    if (document.getElementById("purchaseSupplier")) {
+      const select = document.getElementById("purchaseSupplier");
+      select.innerHTML = buildSupplierOptions(newSupplier.id);
+    } else {
+      openNewPurchase();
+      setTimeout(function() {
+        const select = document.getElementById("purchaseSupplier");
+        if (select) {
+          select.value = String(newSupplier.id);
+        }
+      }, 100);
+    }
+
+    alert("Fornecedor cadastrado com sucesso.");
+
+  } catch (error) {
+    console.error(
+      "Erro ao cadastrar fornecedor:",
+      error
+    );
+
+    alert(
+      "Erro ao cadastrar fornecedor:\n" +
+      error.message
+    );
+  }
+}
+
 function buildPurchaseForm() {
   return `
     <div
@@ -444,11 +803,23 @@ function buildPurchaseForm() {
           Fornecedor
         </label>
 
-        <select
-          id="purchaseSupplier"
+        <div
+          style="display:flex;gap:8px;align-items:flex-end;"
         >
-          ${buildSupplierOptions()}
-        </select>
+          <div style="flex:1;">
+            <select id="purchaseSupplier">
+              ${buildSupplierOptions()}
+            </select>
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-secondary"
+            onclick="openSupplierForm()"
+          >
+            + Cadastrar fornecedor
+          </button>
+        </div>
       </div>
 
       <div>
@@ -584,46 +955,19 @@ function buildPurchaseForm() {
         border-radius:8px;
       "
     >
-      <div
-        class="order-summary-row"
-      >
-        <span>
-          Subtotal
-        </span>
-
-        <strong
-          id="purchaseSummarySubtotal"
-        >
-          R$ 0,00
-        </strong>
+      <div class="order-summary-row">
+        <span>Subtotal</span>
+        <strong id="purchaseSummarySubtotal">R$ 0,00</strong>
       </div>
 
-      <div
-        class="order-summary-row"
-      >
-        <span>
-          Frete
-        </span>
-
-        <strong
-          id="purchaseSummaryFreight"
-        >
-          R$ 0,00
-        </strong>
+      <div class="order-summary-row">
+        <span>Frete</span>
+        <strong id="purchaseSummaryFreight">R$ 0,00</strong>
       </div>
 
-      <div
-        class="order-summary-row"
-      >
-        <span>
-          Desconto
-        </span>
-
-        <strong
-          id="purchaseSummaryDiscount"
-        >
-          R$ 0,00
-        </strong>
+      <div class="order-summary-row">
+        <span>Desconto</span>
+        <strong id="purchaseSummaryDiscount">R$ 0,00</strong>
       </div>
 
       <hr>
@@ -632,15 +976,8 @@ function buildPurchaseForm() {
         class="order-summary-row"
         style="font-size:20px;"
       >
-        <strong>
-          Total
-        </strong>
-
-        <strong
-          id="purchaseSummaryTotal"
-        >
-          R$ 0,00
-        </strong>
+        <strong>Total</strong>
+        <strong id="purchaseSummaryTotal">R$ 0,00</strong>
       </div>
     </div>
 
@@ -1721,13 +2058,8 @@ async function viewPurchase(
         margin-left:auto;
       "
     >
-      <div
-        class="order-summary-row"
-      >
-        <span>
-          Subtotal
-        </span>
-
+      <div class="order-summary-row">
+        <span>Subtotal</span>
         <strong>
           ${purchaseMoney(
             purchase.subtotal
@@ -1735,13 +2067,8 @@ async function viewPurchase(
         </strong>
       </div>
 
-      <div
-        class="order-summary-row"
-      >
-        <span>
-          Frete
-        </span>
-
+      <div class="order-summary-row">
+        <span>Frete</span>
         <strong>
           ${purchaseMoney(
             purchase.frete
@@ -1749,13 +2076,8 @@ async function viewPurchase(
         </strong>
       </div>
 
-      <div
-        class="order-summary-row"
-      >
-        <span>
-          Desconto
-        </span>
-
+      <div class="order-summary-row">
+        <span>Desconto</span>
         <strong>
           ${purchaseMoney(
             purchase.desconto
@@ -1767,14 +2089,9 @@ async function viewPurchase(
 
       <div
         class="order-summary-row"
-        style="
-          font-size:20px;
-        "
+        style="font-size:20px;"
       >
-        <strong>
-          Total
-        </strong>
-
+        <strong>Total</strong>
         <strong>
           ${purchaseMoney(
             purchase.valor_total
@@ -1788,9 +2105,7 @@ async function viewPurchase(
         ? `
           <div
             class="card"
-            style="
-              margin-top:20px;
-            "
+            style="margin-top:20px;"
           >
             <h3>
               Observações

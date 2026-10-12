@@ -359,6 +359,290 @@ function buildQuoteProductOptions(
   `;
 }
 
+/* =========================================================
+   CADASTRO DE CLIENTE (mesmo modelo da página clientes.html)
+   Layout em 2 colunas via .form-grid
+   ========================================================= */
+function openClientForm() {
+  openModal(
+    "Cadastrar cliente",
+    `
+      <div class="form-grid">
+
+        <div class="form-group">
+          <label>Tipo de cliente</label>
+          <select id="c_tipo_cliente">
+            <option value="fisico">Pessoa Física</option>
+            <option value="juridico">Pessoa Jurídica</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Nome *</label>
+          <input type="text" id="c_nome" placeholder="Nome do cliente">
+        </div>
+
+        <div class="form-group">
+          <label>CPF / CNPJ</label>
+          <input type="text" id="c_cpf_cnpj" placeholder="CPF ou CNPJ">
+        </div>
+
+        <div class="form-group">
+          <label>E-mail</label>
+          <input type="email" id="c_email" placeholder="cliente@email.com">
+        </div>
+
+        <div class="form-group">
+          <label>Telefone</label>
+          <input type="text" id="c_telefone" placeholder="Telefone">
+        </div>
+
+        <div class="form-group">
+          <label>WhatsApp</label>
+          <input type="text" id="c_whatsapp" placeholder="WhatsApp">
+        </div>
+
+        <div class="form-group">
+          <label>CEP</label>
+          <input type="text" id="c_cep" placeholder="CEP">
+        </div>
+
+        <div class="form-group">
+          <label>Endereço</label>
+          <input type="text" id="c_endereco" placeholder="Endereço">
+        </div>
+
+        <div class="form-group">
+          <label>Número</label>
+          <input type="text" id="c_numero" placeholder="Número">
+        </div>
+
+        <div class="form-group">
+          <label>Complemento</label>
+          <input type="text" id="c_complemento" placeholder="Complemento">
+        </div>
+
+        <div class="form-group">
+          <label>Bairro</label>
+          <input type="text" id="c_bairro" placeholder="Bairro">
+        </div>
+
+        <div class="form-group">
+          <label>Cidade</label>
+          <input type="text" id="c_cidade" placeholder="Cidade">
+        </div>
+
+        <div class="form-group">
+          <label>Estado</label>
+          <input type="text" id="c_estado" maxlength="2" placeholder="MG">
+        </div>
+
+        <div class="form-group">
+          <label>Status</label>
+          <select id="c_ativo">
+            <option value="true" selected>Ativo</option>
+            <option value="false">Inativo</option>
+          </select>
+        </div>
+
+        <div class="form-group full">
+          <label>Observações</label>
+          <textarea id="c_observacoes" placeholder="Observações"></textarea>
+        </div>
+
+      </div>
+
+      <div class="modal-actions">
+
+        <button
+          class="btn btn-secondary"
+          type="button"
+          onclick="closeModal()"
+        >
+          Cancelar
+        </button>
+
+        <button
+          class="btn btn-primary"
+          type="button"
+          onclick="saveClientFromQuote()"
+          id="saveClientFromQuoteButton"
+        >
+          Salvar cliente
+        </button>
+
+      </div>
+    `
+  );
+}
+
+async function saveClientFromQuote() {
+  const name =
+    document.getElementById("c_nome")
+      .value
+      .trim();
+
+  if (!name) {
+    alert("Informe o nome do cliente.");
+    return;
+  }
+
+  if (!currentStore || !currentStore.id_loja) {
+    alert("Loja não identificada.");
+    return;
+  }
+
+  const payload = {
+    id_loja:
+      currentStore.id_loja,
+
+    tipo_cliente:
+      document.getElementById("c_tipo_cliente").value,
+
+    nome:
+      name,
+
+    cpf_cnpj:
+      document.getElementById("c_cpf_cnpj")
+        .value.trim() || null,
+
+    email:
+      document.getElementById("c_email")
+        .value.trim() || null,
+
+    telefone:
+      document.getElementById("c_telefone")
+        .value.trim() || null,
+
+    whatsapp:
+      document.getElementById("c_whatsapp")
+        .value.trim() || null,
+
+    cep:
+      document.getElementById("c_cep")
+        .value.trim() || null,
+
+    endereco:
+      document.getElementById("c_endereco")
+        .value.trim() || null,
+
+    numero:
+      document.getElementById("c_numero")
+        .value.trim() || null,
+
+    complemento:
+      document.getElementById("c_complemento")
+        .value.trim() || null,
+
+    bairro:
+      document.getElementById("c_bairro")
+        .value.trim() || null,
+
+    cidade:
+      document.getElementById("c_cidade")
+        .value.trim() || null,
+
+    estado:
+      document.getElementById("c_estado")
+        .value.trim().toUpperCase() || null,
+
+    observacoes:
+      document.getElementById("c_observacoes")
+        .value.trim() || null,
+
+    ativo:
+      document.getElementById("c_ativo").value === "true"
+  };
+
+  const button =
+    document.getElementById("saveClientFromQuoteButton");
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Salvando...";
+  }
+
+  try {
+    const result =
+      await db
+        .from("gestao_loja_clientes")
+        .insert(payload)
+        .select(`
+          id,
+          nome,
+          telefone,
+          whatsapp,
+          email,
+          cpf_cnpj,
+          cep,
+          endereco,
+          numero,
+          complemento,
+          bairro,
+          cidade,
+          estado
+        `)
+        .single();
+
+    if (result.error) {
+      throw result.error;
+    }
+
+    const newClient = result.data;
+
+    // Atualiza a lista local
+    clients.push(newClient);
+
+    clients.sort(function(a, b) {
+      return String(a.nome || "").localeCompare(
+        String(b.nome || ""),
+        "pt-BR"
+      );
+    });
+
+    closeModal();
+
+    const quoteSelect =
+      document.getElementById("quoteClient");
+
+    if (quoteSelect) {
+      quoteSelect.innerHTML =
+        buildQuoteClientOptions(newClient.id);
+
+      // Preenche o endereço automaticamente
+      changeQuoteClient(newClient.id);
+
+    } else {
+      openNewQuote();
+
+      setTimeout(function() {
+        const sel = document.getElementById("quoteClient");
+
+        if (sel) {
+          sel.value = String(newClient.id);
+          changeQuoteClient(newClient.id);
+        }
+      }, 100);
+    }
+
+    alert("Cliente cadastrado com sucesso.");
+
+  } catch (error) {
+    console.error("Erro ao cadastrar cliente:", error);
+
+    alert(
+      "Erro ao cadastrar cliente:\n" +
+      error.message
+    );
+
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Salvar cliente";
+    }
+  }
+}
+
 function buildQuoteForm() {
   return `
 
@@ -376,14 +660,32 @@ function buildQuoteForm() {
           Cliente
         </label>
 
-        <select
-          id="quoteClient"
-          onchange="changeQuoteClient(this.value)"
+        <div
+          style="display:flex;gap:8px;align-items:flex-end;"
         >
 
-          ${buildQuoteClientOptions()}
+          <div style="flex:1;">
 
-        </select>
+            <select
+              id="quoteClient"
+              onchange="changeQuoteClient(this.value)"
+            >
+
+              ${buildQuoteClientOptions()}
+
+            </select>
+
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-secondary"
+            onclick="openClientForm()"
+          >
+            + Cadastrar cliente
+          </button>
+
+        </div>
 
       </div>
 
@@ -3697,11 +3999,6 @@ document.addEventListener(
         return;
       }
 
-      /*
-       * Garante que o menu seja carregado nesta página.
-       * Sem isso, o #storeName fica com "Carregando loja..."
-       * quando o app.js não chega a chamar loadMenu().
-       */
       if (typeof loadMenu === "function") {
         await loadMenu();
       }

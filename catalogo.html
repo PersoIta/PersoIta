@@ -722,8 +722,6 @@
         gap: 10px;
       }
 
-      
-
       .catalog-store-logo-image {
         max-width: 50px;
         max-height: 50px;
@@ -908,14 +906,48 @@
         font-size: 18px;
       }
     }
+
+    /* =========================================
+       CATÁLOGO: layout adaptativo com/sem menu
+       (só afeta o catálogo, não altera o resto)
+       ========================================= */
+
+    /* Sem menu: catálogo ocupa tudo, centralizado */
+    body:not(.has-menu) .catalog-main {
+      margin-left: auto;
+      margin-right: auto;
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    /* Com menu: desloca para a direita do sidebar */
+    body.has-menu .catalog-main {
+      margin-left: 245px;
+      margin-right: 0;
+      width: calc(100% - 245px);
+      max-width: none;
+    }
+
+    /* Garante que o menu fique escondido quando o body não tem .has-menu */
+    body:not(.has-menu) .sidebar,
+    body:not(.has-menu) #menu {
+      display: none !important;
+    }
+
+    @media (max-width: 700px) {
+      body.has-menu .catalog-main {
+        margin-left: 70px;
+        width: calc(100% - 70px);
+      }
+    }
   </style>
 </head>
 
-<body>
+<body data-page="catalogo">
 
   <div id="app" class="catalog-app">
 
-    <div id="menu" style="display:none;"></div>
+    <aside id="menu" class="sidebar" style="display:none;"></aside>
 
     <main class="catalog-main">
 
@@ -938,21 +970,11 @@
 
         </div>
 
-        <header class="catalog-header">
-
-  <div class="catalog-store-brand">
-    <div id="catalogStoreLogo" class="catalog-store-logo" style="display:none;"></div>
-    <div class="catalog-store-name" id="catalogStoreName">Catálogo</div>
-  </div>
-
-  <!-- ✅ Botão FORA da .catalog-store-brand, mas dentro do <header> -->
-  <div class="catalog-art-button-wrap">
-    <a href="editor.html" target="_blank" rel="noopener" class="catalog-create-art-btn">
-      🎨 Criar minha arte
-    </a>
-  </div>
-
-</header>
+        <div class="catalog-art-button-wrap">
+          <a href="editor.html" target="_blank" rel="noopener" class="catalog-create-art-btn">
+            🎨 Criar minha arte
+          </a>
+        </div>
 
       </header>
 

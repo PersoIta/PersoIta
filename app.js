@@ -14,6 +14,8 @@ const db = createClient(
 let currentUser = null;
 let currentStore = null;
 
+window.db = db;
+
 function $(id) {
   return document.getElementById(id);
 }
@@ -367,6 +369,8 @@ async function loadUserContext() {
     currentStore =
       store;
 
+    window.currentStore = currentStore;
+
     console.log(
       "Loja carregada:",
       currentStore
@@ -693,9 +697,9 @@ async function initDashboard() {
 }
 
 /**
- * Páginas públicas: NÃO exigem login e NÃO carregam menu.
- * O próprio script da página (ex.: catalogo.js) cuida da
- * renderização e do controle de acesso.
+ * Páginas públicas: NÃO exigem login. O próprio script da
+ * página cuida da renderização. Porém, se houver sessão
+ * ativa, o menu lateral deve ser carregado normalmente.
  */
 const PUBLIC_PAGES = [
   "catalogo"
@@ -709,15 +713,82 @@ function isPublicPage() {
     return true;
   }
 
-  /*
-   * Reforço: se a página tiver o container do catálogo,
-   * tratamos como pública mesmo sem data-page.
-   */
   if (document.getElementById("catalogProducts")) {
     return true;
   }
 
   return false;
+}
+
+/* =========================================================
+   MENU CONDICIONAL
+   Adiciona/remove a classe .has-menu do <body> conforme o
+   estado de login. É isso que faz o menu aparecer no
+   catálogo quando o usuário está logado.
+   ========================================================= */
+function aplicarEstadoMenu(logado) {
+  const body = document.body;
+  const menu = document.getElementById("menu");
+
+  if (logado) {
+    body.classList.add("has-menu");
+    if (menu) menu.style.display = "";
+  } else {
+    body.classList.remove("has-menu");
+    if (menu) menu.style.display = "none";
+  }
+}
+
+/* No catálogo (página pública), verifica sessão e:
+   - se logado: aplica .has-menu, carrega contexto + menu
+   - se não logado: mantém o menu escondido
+*/
+async function initPublicPage() {
+  const menu = document.getElementById("menu");
+
+  // Se a página nem tem o elemento de menu, não há o que fazer
+  if (!menu) {
+    aplicarEstadoMenu(false);
+    return;
+  }
+
+  try {
+    const { data: { session } } =
+      await db.auth.getSession();
+
+    if (!session) {
+      // Sem login: menu escondido e pronto.
+      aplicarEstadoMenu(false);
+      return;
+    }
+
+    currentUser = session.user;
+
+    // Com login: aplica .has-menu ANTES de carregar para
+    // o layout já se ajustar.
+    aplicarEstadoMenu(true);
+
+    // Carrega contexto (usuário + loja) e menu.
+    const contextLoaded = await loadUserContext();
+
+    if (!contextLoaded) {
+      // Se o contexto falhar, esconde o menu de novo para
+      // não deixar um menu vazio aparecendo.
+      aplicarEstadoMenu(false);
+      return;
+    }
+
+    await loadMenu();
+    setActiveNav();
+
+  } catch (error) {
+    console.error(
+      "Erro ao inicializar página pública com menu:",
+      error
+    );
+
+    aplicarEstadoMenu(false);
+  }
 }
 
 document.addEventListener(
@@ -730,45 +801,29 @@ document.addEventListener(
     const isLoginPage =
       !!loginForm;
 
-
-    /*
-     * A página de login é uma exceção.
-     * Ela não deve executar requireAuth(),
-     * pois ainda não existe sessão.
-     */
+    /* Login: exceção, não executa requireAuth() */
     if (isLoginPage) {
-
       login();
-
       return;
     }
 
-
-    /*
-     * Páginas públicas (ex.: catálogo) não exigem login
-     * e não devem carregar o menu do sistema.
-     * O próprio script da página cuida de tudo.
-     */
+    /* Página pública (catálogo): exige login NÃO, mas
+       mostra o menu SE estiver logado. */
     if (isPublicPage()) {
+      await initPublicPage();
       return;
     }
 
-
-    /*
-     * Todas as outras páginas precisam
-     * de um usuário autenticado.
-     */
+    /* Dashboard */
     if (
       document.body.dataset.page ===
       "dashboard"
     ) {
-
       await initDashboard();
-
       return;
     }
 
-
+    /* Demais páginas protegidas */
     const authenticated =
       await requireAuth();
 
@@ -776,14 +831,12 @@ document.addEventListener(
       return;
     }
 
-
     const contextLoaded =
       await loadUserContext();
 
     if (!contextLoaded) {
       return;
     }
-
 
     await loadMenu();
 
