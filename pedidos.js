@@ -58,6 +58,21 @@ function formatDate(value) {
   return date.toLocaleDateString("pt-BR");
 }
 
+/* ===== NOVO: formatação com data+hora (usado no bloco de NF-e) ===== */
+function formatDateTime(value) {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString("pt-BR");
+}
+
 function isNew(order) {
   if (!order) {
     return false;
@@ -90,6 +105,53 @@ function isPending(order) {
     status === "pendente" ||
     status === "pending"
   );
+}
+
+/* ===== NOVO: detecta pedido confirmado ===== */
+function isConfirmed(order) {
+  if (!order) {
+    return false;
+  }
+
+  const status = String(
+    order.status || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  return (
+    status === "confirmado" ||
+    status === "confirmed"
+  );
+}
+
+/* ===== NOVO: detecta cliente Pessoa Jurídica ===== */
+function isPessoaJuridica(client) {
+  if (!client) {
+    return false;
+  }
+
+  const tipo = String(
+    client.tipo_cliente || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  if (
+    tipo === "juridico" ||
+    tipo === "jurídica" ||
+    tipo === "pj" ||
+    tipo === "pessoa_juridica"
+  ) {
+    return true;
+  }
+
+  // Fallback: se não tem tipo, mas tem CNPJ (14 dígitos)
+  const doc = String(
+    client.cpf_cnpj || ""
+  ).replace(/\D/g, "");
+
+  return doc.length === 14;
 }
 
 async function loadClients() {
@@ -160,7 +222,8 @@ async function loadOrders() {
         telefone,
         whatsapp,
         email,
-        cpf_cnpj
+        cpf_cnpj,
+        tipo_cliente
       )
     `)
     .eq("id_loja", currentStore.id_loja)
@@ -173,6 +236,36 @@ async function loadOrders() {
   }
 
   orders = data || [];
+
+  /* ===== NOVO: carrega notas fiscais em lote ===== */
+  window.__notasPorPedido = {};
+
+  if (orders.length) {
+    const orderIds = orders.map(
+      order => order.id
+    );
+
+    const {
+      data: notas,
+      error: notasError
+    } = await db
+      .from("gestao_loja_notas_fiscais")
+      .select("id, pedido_id, numero, serie, chave, status, pdf_url, xml_url")
+      .eq("id_loja", currentStore.id_loja)
+      .in("pedido_id", orderIds);
+
+    if (!notasError && notas) {
+      notas.forEach(nota => {
+        const atual =
+          window.__notasPorPedido[nota.pedido_id];
+
+        if (!atual || Number(nota.id) > Number(atual.id)) {
+          window.__notasPorPedido[nota.pedido_id] = nota;
+        }
+      });
+    }
+  }
+  /* ===== FIM NOVO ===== */
 
   renderOrders();
 }
@@ -220,6 +313,7 @@ function renderOrders() {
             <th>Data</th>
             <th>Status</th>
             <th>Valor</th>
+            <th>NF-e</th>
             <th style="text-align:right;">
               Ações
             </th>
@@ -234,6 +328,42 @@ function renderOrders() {
             const clientName =
               client?.nome ||
               "Cliente não informado";
+
+            /* ===== NOVO: célula de NF-e ===== */
+            const nota =
+              (window.__notasPorPedido || {})[order.id];
+
+            let nfCell = "<span class='muted'>—</span>";
+
+            if (nota) {
+              let cor = "#b06a00";
+
+              if (nota.status === "autorizada") {
+                cor = "#0a7d28";
+              } else if (nota.status === "cancelada") {
+                cor = "#6b6b6b";
+              } else if (
+                nota.status === "rejeitada" ||
+                nota.status === "erro"
+              ) {
+                cor = "#a80000";
+              }
+
+              nfCell = `
+                <span
+                  style="
+                    color:${cor};
+                    font-weight:600;
+                    cursor:pointer;
+                  "
+                  title="Clique para ver detalhes da NF-e"
+                  onclick="viewOrder(${order.id})"
+                >
+                  ${escapeHtml(nota.numero || "s/nº")} · ${escapeHtml(nota.status || "")}
+                </span>
+              `;
+            }
+            /* ===== FIM NOVO ===== */
 
             return `
               <tr>
@@ -266,6 +396,10 @@ function renderOrders() {
                       order.valor_total
                     )}
                   </strong>
+                </td>
+
+                <td>
+                  ${nfCell}
                 </td>
 
                 <td style="text-align:right;">
@@ -360,6 +494,13 @@ function openClientForm() {
           <label>CPF / CNPJ</label>
           <input type="text" id="c_cpf_cnpj" placeholder="CPF ou CNPJ">
         </div>
+
+        <!-- ===== NOVO: Inscrição Estadual ===== -->
+        <div class="form-group">
+          <label>Inscrição Estadual</label>
+          <input type="text" id="c_inscricao_estadual" placeholder="IE (para PJ)">
+        </div>
+        <!-- ===== FIM NOVO ===== -->
 
         <div class="form-group">
           <label>E-mail</label>
@@ -480,6 +621,12 @@ async function saveClientFromOrder() {
       document.getElementById("c_cpf_cnpj")
         .value.trim() || null,
 
+    /* ===== NOVO: Inscrição Estadual ===== */
+    inscricao_estadual:
+      document.getElementById("c_inscricao_estadual")
+        .value.trim() || null,
+    /* ===== FIM NOVO ===== */
+
     email:
       document.getElementById("c_email")
         .value.trim() || null,
@@ -548,6 +695,8 @@ async function saveClientFromOrder() {
           whatsapp,
           email,
           cpf_cnpj,
+          tipo_cliente,
+          inscricao_estadual,
           cep,
           endereco,
           numero,
@@ -1928,7 +2077,16 @@ async function viewOrder(
         telefone,
         whatsapp,
         email,
-        cpf_cnpj
+        cpf_cnpj,
+        tipo_cliente,
+        inscricao_estadual,
+        endereco,
+        numero,
+        complemento,
+        bairro,
+        cidade,
+        estado,
+        cep
       )
     `)
     .eq(
@@ -1983,8 +2141,27 @@ async function viewOrder(
     return;
   }
 
+  /* ===== NOVO: busca a nota fiscal do pedido ===== */
+  const {
+    data: nota
+  } = await db
+    .from("gestao_loja_notas_fiscais")
+    .select("*")
+    .eq("pedido_id", orderId)
+    .eq("id_loja", currentStore.id_loja)
+    .order("id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  /* ===== FIM NOVO ===== */
+
   const client =
     order.gestao_loja_clientes;
+
+  /* ===== NOVO: flags PJ/confirmado ===== */
+  const isPJ = isPessoaJuridica(client);
+  const canEmitNFe =
+    isConfirmed(order) && isPJ && !nota;
+  /* ===== FIM NOVO ===== */
 
   document.getElementById(
     "modal"
@@ -2065,6 +2242,123 @@ async function viewOrder(
       }
     ).join("");
 
+  /* ===== NOVO: bloco de NF-e ===== */
+  let nfBlock = "";
+
+  if (nota) {
+    let cor = "#b06a00";
+
+    if (nota.status === "autorizada") {
+      cor = "#0a7d28";
+    } else if (nota.status === "cancelada") {
+      cor = "#6b6b6b";
+    } else if (
+      nota.status === "rejeitada" ||
+      nota.status === "erro"
+    ) {
+      cor = "#a80000";
+    }
+
+    nfBlock = `
+      <div
+        class="card"
+        style="
+          margin-top:20px;
+          border-left:4px solid ${cor};
+        "
+      >
+        <h3 style="margin-top:0;">
+          🧾 Nota Fiscal
+        </h3>
+
+        <p>
+          <strong>Número:</strong>
+          ${escapeHtml(nota.numero || "-")}
+          / Série ${escapeHtml(nota.serie || "-")}
+        </p>
+
+        <p>
+          <strong>Chave:</strong>
+          <small>${escapeHtml(nota.chave || "-")}</small>
+        </p>
+
+        <p>
+          <strong>Status:</strong>
+          <span style="color:${cor};font-weight:600;">
+            ${escapeHtml(nota.status || "-")}
+          </span>
+        </p>
+
+        <p>
+          <strong>Emitida em:</strong>
+          ${formatDateTime(nota.created_at)}
+        </p>
+
+        ${
+          nota.mensagem
+            ? `<p><strong>Mensagem:</strong> ${escapeHtml(nota.mensagem)}</p>`
+            : ""
+        }
+
+        <div
+          style="
+            display:flex;
+            gap:10px;
+            flex-wrap:wrap;
+            margin-top:15px;
+          "
+        >
+          ${
+            nota.pdf_url
+              ? `
+                <button
+                  class="btn btn-secondary"
+                  onclick="openNfeFile('${nota.pdf_url}')"
+                >
+                  📄 Abrir DANFE (PDF)
+                </button>
+              `
+              : ""
+          }
+
+          ${
+            nota.xml_url
+              ? `
+                <button
+                  class="btn btn-secondary"
+                  onclick="openNfeFile('${nota.xml_url}')"
+                >
+                  📥 Baixar XML
+                </button>
+              `
+              : ""
+          }
+
+          <button
+            class="btn btn-secondary"
+            onclick="refreshNfeStatus(${order.id})"
+          >
+            🔄 Atualizar status
+          </button>
+
+          ${
+            nota.status === "autorizada"
+              ? `
+                <button
+                  class="btn btn-danger"
+                  onclick="cancelNfe(${order.id})"
+                >
+                  ✖ Cancelar NF-e
+                </button>
+              `
+              : ""
+          }
+        </div>
+      </div>
+    `;
+  }
+  /* ===== FIM NOVO ===== */
+
   document.getElementById(
     "modalContent"
   ).innerHTML = `
@@ -2138,6 +2432,18 @@ async function viewOrder(
           )}
         </p>
 
+        ${
+          client?.inscricao_estadual
+            ? `
+              <p>
+                IE: ${escapeHtml(
+                  client.inscricao_estadual
+                )}
+              </p>
+            `
+            : ""
+        }
+
         <p>
           ${escapeHtml(
             client?.telefone ||
@@ -2151,6 +2457,16 @@ async function viewOrder(
             client?.email ||
             ""
           )}
+        </p>
+
+        <p
+          class="muted"
+          style="
+            margin-top:8px;
+            font-size:12px;
+          "
+        >
+          Tipo: ${isPJ ? "Pessoa Jurídica" : "Pessoa Física"}
         </p>
       </div>
     </div>
@@ -2281,6 +2597,8 @@ async function viewOrder(
       </div>
     </div>
 
+    ${nfBlock}
+
     ${
       order.observacoes
         ? `
@@ -2326,6 +2644,23 @@ async function viewOrder(
       >
         📄 Gerar PDF
       </button>
+
+      ${
+        canEmitNFe
+          ? `
+            <button
+              class="btn btn-primary"
+              onclick="
+                openInvoiceForm(
+                  ${order.id}
+                )
+              "
+            >
+              🧾 Emitir NF-e
+            </button>
+          `
+          : ""
+      }
 
       ${
         isNew(order)
@@ -2872,7 +3207,9 @@ async function generateOrderPDF(
         telefone,
         whatsapp,
         email,
-        cpf_cnpj
+        cpf_cnpj,
+        tipo_cliente,
+        inscricao_estadual
       )
     `)
     .eq(
@@ -3410,6 +3747,411 @@ async function generateOrderPDF(
     500
   );
 }
+
+/* =========================================================
+   ===== NOVO: EMISSÃO / CONSULTA / CANCELAMENTO DE NF-e =====
+   ========================================================= */
+
+async function openInvoiceForm(orderId) {
+  const {
+    data: order,
+    error: orderError
+  } = await db
+    .from("gestao_loja_pedidos")
+    .select(`
+      *,
+      gestao_loja_clientes (
+        id,
+        nome,
+        cpf_cnpj,
+        tipo_cliente,
+        inscricao_estadual,
+        email,
+        endereco,
+        numero,
+        complemento,
+        bairro,
+        cidade,
+        estado,
+        cep
+      )
+    `)
+    .eq("id", orderId)
+    .eq("id_loja", currentStore.id_loja)
+    .single();
+
+  if (orderError) {
+    alert("Erro ao carregar pedido:\n" + orderError.message);
+    return;
+  }
+
+  const client = order.gestao_loja_clientes;
+
+  if (!isConfirmed(order)) {
+    alert("Somente pedidos confirmados podem emitir NF-e.");
+    return;
+  }
+
+  if (!isPessoaJuridica(client)) {
+    alert(
+      "Este cliente não é Pessoa Jurídica.\n\n" +
+      "NF-e disponível apenas para clientes PJ."
+    );
+    return;
+  }
+
+  const {
+    data: items,
+    error: itemsError
+  } = await db
+    .from("gestao_loja_pedidos_itens")
+    .select(`
+      *,
+      gestao_loja_produtos (
+        id,
+        nome,
+        sku,
+        ncm,
+        cfop,
+        unidade
+      ),
+      gestao_loja_produtos_variacoes (
+        id,
+        nome,
+        sku
+      )
+    `)
+    .eq("pedido_id", orderId)
+    .order("id");
+
+  if (itemsError) {
+    alert("Erro ao carregar itens:\n" + itemsError.message);
+    return;
+  }
+
+  const itemsHtml =
+    (items || []).map((item, idx) => {
+      const p = item.gestao_loja_produtos || {};
+      const v = item.gestao_loja_produtos_variacoes;
+
+      return `
+        <tr>
+          <td>
+            ${escapeHtml(p.nome || "-")}
+            ${
+              v?.nome
+                ? `<br><small class="muted">${escapeHtml(v.nome)}</small>`
+                : ""
+            }
+          </td>
+          <td>${orderNumber(item.quantidade)}</td>
+          <td>${orderMoney(item.preco_unitario)}</td>
+          <td>
+            <input
+              type="text"
+              id="ncm_${idx}"
+              value="${escapeHtml(p.ncm || "")}"
+              maxlength="8"
+              placeholder="00000000"
+              style="width:110px;"
+            >
+          </td>
+          <td>
+            <input
+              type="text"
+              id="cfop_${idx}"
+              value="${escapeHtml(p.cfop || "5102")}"
+              maxlength="4"
+              placeholder="5102"
+              style="width:80px;"
+            >
+          </td>
+          <td>
+            <input
+              type="text"
+              id="unidade_${idx}"
+              value="${escapeHtml(p.unidade || "UN")}"
+              maxlength="6"
+              style="width:70px;"
+            >
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+  openModal(
+    `Emitir NF-e — Pedido #${order.numero || order.id}`,
+    `
+      <div class="card" style="margin-bottom:15px;">
+        <p><strong>Cliente:</strong> ${escapeHtml(client.nome)}</p>
+        <p><strong>CNPJ:</strong> ${escapeHtml(client.cpf_cnpj || "-")}</p>
+        ${
+          client.inscricao_estadual
+            ? `<p><strong>IE:</strong> ${escapeHtml(client.inscricao_estadual)}</p>`
+            : ""
+        }
+        <p><strong>Total do pedido:</strong> ${orderMoney(order.valor_total)}</p>
+      </div>
+
+      <p class="muted" style="font-size:13px;">
+        Confira os dados fiscais dos itens.
+        NCM (8 dígitos) e CFOP são obrigatórios.
+      </p>
+
+      <div style="overflow:auto;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th>Qtd</th>
+              <th>Valor unit.</th>
+              <th>NCM</th>
+              <th>CFOP</th>
+              <th>Un.</th>
+            </tr>
+          </thead>
+          <tbody>${itemsHtml}</tbody>
+        </table>
+      </div>
+
+      <div class="form-grid" style="margin-top:20px;">
+        <div class="form-group">
+          <label>Natureza da operação</label>
+          <input
+            type="text"
+            id="nf_natureza"
+            value="Venda de mercadoria"
+          >
+        </div>
+
+        <div class="form-group">
+          <label>Modalidade do frete</label>
+          <select id="nf_frete">
+            <option value="9">Sem frete (9)</option>
+            <option value="0">Por conta do emitente (0)</option>
+            <option value="1">Por conta do destinatário (1)</option>
+            <option value="2">Por conta de terceiros (2)</option>
+          </select>
+        </div>
+
+        <div class="form-group full">
+          <label>Informações complementares</label>
+          <textarea
+            id="nf_info"
+            placeholder="Pedido interno, observações fiscais..."
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button
+          class="btn btn-secondary"
+          onclick="closeModal()"
+        >
+          Cancelar
+        </button>
+
+        <button
+          class="btn btn-primary"
+          id="nfEmitButton"
+          onclick="emitInvoice(${order.id}, ${(items || []).length})"
+        >
+          Emitir NF-e
+        </button>
+      </div>
+    `
+  );
+}
+
+async function emitInvoice(orderId, itemCount) {
+  const button = document.getElementById("nfEmitButton");
+
+  const itensFiscais = [];
+
+  for (let i = 0; i < itemCount; i++) {
+    const ncm = document.getElementById(`ncm_${i}`)?.value.trim() || "";
+    const cfop = document.getElementById(`cfop_${i}`)?.value.trim() || "";
+    const unidade = document.getElementById(`unidade_${i}`)?.value.trim() || "UN";
+
+    if (!ncm || ncm.replace(/\D/g, "").length !== 8) {
+      alert(`Preencha um NCM válido (8 dígitos) para o item ${i + 1}.`);
+      return;
+    }
+
+    itensFiscais.push({
+      index: i,
+      ncm: ncm.replace(/\D/g, ""),
+      cfop: cfop.replace(/\D/g, "") || "5102",
+      unidade
+    });
+  }
+
+  const confirmed = confirm(
+    "Confirma a emissão da NF-e?\n\n" +
+    "Após autorizada pela SEFAZ, a nota só poderá " +
+    "ser cancelada dentro do prazo legal."
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Emitindo...";
+  }
+
+  try {
+    const { data, error } = await db.functions.invoke("emitir-nfe", {
+      body: {
+        pedido_id: orderId,
+        id_loja: currentStore.id_loja,
+        natureza_operacao: document.getElementById("nf_natureza").value.trim(),
+        modalidade_frete: Number(document.getElementById("nf_frete").value),
+        informacoes_complementares:
+          document.getElementById("nf_info").value.trim(),
+        itens_fiscais: itensFiscais
+      }
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data?.success) {
+      throw new Error(data?.message || "Falha ao emitir NF-e.");
+    }
+
+    alert(
+      "NF-e enviada com sucesso!\n\n" +
+      "Número: " + (data.numero || "processando") + "\n" +
+      "Status: " + (data.status || "processando") + "\n" +
+      (data.chave ? "Chave: " + data.chave + "\n" : "") +
+      "\nSe o status não estiver 'autorizada', use o botão " +
+      "'Atualizar status'."
+    );
+
+    closeModal();
+
+    await loadOrders();
+
+    await viewOrder(orderId);
+
+  } catch (err) {
+    console.error("Erro ao emitir NF-e:", err);
+
+    alert(
+      "Erro ao emitir NF-e:\n" +
+      (err.message || "Erro desconhecido.")
+    );
+
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Emitir NF-e";
+    }
+  }
+}
+
+async function refreshNfeStatus(orderId) {
+  try {
+    const { data, error } = await db.functions.invoke("consultar-nfe", {
+      body: {
+        pedido_id: orderId,
+        id_loja: currentStore.id_loja
+      }
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data?.success) {
+      throw new Error(data?.message || "Falha ao consultar NF-e.");
+    }
+
+    alert(
+      "Status atualizado!\n\n" +
+      "Status: " + (data.status || "-") + "\n" +
+      "Número: " + (data.numero || "-") + "\n" +
+      (data.mensagem ? "Mensagem: " + data.mensagem : "")
+    );
+
+    await loadOrders();
+    await viewOrder(orderId);
+
+  } catch (err) {
+    console.error("Erro ao consultar NF-e:", err);
+
+    alert(
+      "Erro ao consultar NF-e:\n" +
+      (err.message || "Erro desconhecido.")
+    );
+  }
+}
+
+async function cancelNfe(orderId) {
+  const justificativa = prompt(
+    "Justificativa do cancelamento (mínimo 15 caracteres):"
+  );
+
+  if (justificativa === null) {
+    return;
+  }
+
+  if (!justificativa || justificativa.trim().length < 15) {
+    alert("A justificativa precisa ter pelo menos 15 caracteres.");
+    return;
+  }
+
+  const confirmed = confirm("Confirma o cancelamento da NF-e?");
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    const { data, error } = await db.functions.invoke("emitir-nfe", {
+      body: {
+        action: "cancelar",
+        pedido_id: orderId,
+        id_loja: currentStore.id_loja,
+        justificativa: justificativa.trim()
+      }
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data?.success) {
+      throw new Error(data?.message || "Falha ao cancelar NF-e.");
+    }
+
+    alert("NF-e cancelada com sucesso.");
+
+    await loadOrders();
+    await viewOrder(orderId);
+
+  } catch (err) {
+    console.error("Erro ao cancelar NF-e:", err);
+
+    alert(
+      "Erro ao cancelar NF-e:\n" +
+      (err.message || "Erro desconhecido.")
+    );
+  }
+}
+
+function openNfeFile(url) {
+  if (!url) {
+    return;
+  }
+
+  window.open(url, "_blank");
+}
+
+/* ===== FIM NOVO ===== */
 
 document.addEventListener(
   "DOMContentLoaded",

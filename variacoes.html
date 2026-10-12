@@ -144,6 +144,10 @@
 
     let currentImageUrl = null;
 
+    /*
+     * Carrega os produtos com TODOS os campos
+     * que vamos reaproveitar na variação.
+     */
     async function loadProducts() {
 
       const result = await db
@@ -152,7 +156,21 @@
           id,
           id_loja,
           nome,
-          sku
+          sku,
+          descricao,
+          imagem_principal,
+          preco_custo,
+          preco_venda,
+          estoque_minimo,
+          ativo,
+          exibir_catalogo,
+          exibir_preco_catalogo,
+          observacoes,
+          ncm,
+          cfop,
+          cest,
+          unidade,
+          origem_mercadoria
         `)
         .eq(
           "id_loja",
@@ -567,7 +585,8 @@
 
             <select
               id="v_produto"
-              required>
+              required
+              onchange="onProductChange(this.value)">
 
               <option value="">
                 Selecione o produto
@@ -576,6 +595,16 @@
               ${productOptions}
 
             </select>
+
+            <small
+              class="muted"
+              id="productHint"
+              style="display:none;margin-top:6px;">
+
+              Os dados do produto foram preenchidos
+              automaticamente. Ajuste como quiser.
+
+            </small>
 
           </div>
 
@@ -844,6 +873,225 @@
       `;
 
     }
+
+    /*
+     * ==========================================================
+     * NOVO: ao trocar o produto no select, puxa os dados dele
+     * ==========================================================
+     */
+    function onProductChange(productId) {
+
+      const hint =
+        $("productHint");
+
+      if (!productId) {
+
+        if (hint) {
+          hint.style.display = "none";
+        }
+
+        return;
+
+      }
+
+      const product =
+        products.find(function(p) {
+
+          return String(p.id) ===
+            String(productId);
+
+        });
+
+      if (!product) {
+
+        if (hint) {
+          hint.style.display = "none";
+        }
+
+        return;
+
+      }
+
+      /*
+       * Avisa se o produto já tem variações
+       * cadastradas (evita duplicidade).
+       */
+      const jaTemVariacoes =
+        variations.some(function(v) {
+
+          return (
+            String(v.produto_id) ===
+              String(productId) &&
+            String(v.id) !==
+              String(editingVariationId || "")
+          );
+
+        });
+
+      /* ----- Nome ----- */
+      const nomeInput =
+        $("v_nome");
+
+      if (nomeInput) {
+
+        /*
+         * Só sobrescreve se estiver vazio ou
+         * igual ao nome anterior do produto.
+         * Assim não apaga o que o usuário digitou.
+         */
+        if (!nomeInput.value.trim()) {
+
+          nomeInput.value =
+            product.nome || "";
+
+        }
+
+      }
+
+      /* ----- Descrição ----- */
+      const descricaoInput =
+        $("v_descricao");
+
+      if (descricaoInput) {
+
+        if (!descricaoInput.value.trim()) {
+
+          descricaoInput.value =
+            product.descricao || "";
+
+        }
+
+      }
+
+      /* ----- Preço de venda ----- */
+      const precoInput =
+        $("v_preco");
+
+      if (precoInput) {
+
+        if (
+          !precoInput.value ||
+          Number(precoInput.value) === 0
+        ) {
+
+          precoInput.value =
+            Number(
+              product.preco_venda || 0
+            );
+
+        }
+
+      }
+
+      /* ----- Preço de custo ----- */
+      const custoInput =
+        $("v_custo");
+
+      if (custoInput) {
+
+        if (
+          !custoInput.value ||
+          Number(custoInput.value) === 0
+        ) {
+
+          custoInput.value =
+            Number(
+              product.preco_custo || 0
+            );
+
+        }
+
+      }
+
+      /* ----- Estoque mínimo ----- */
+      const minimoInput =
+        $("v_minimo");
+
+      if (minimoInput) {
+
+        if (
+          !minimoInput.value ||
+          Number(minimoInput.value) === 0
+        ) {
+
+          minimoInput.value =
+            Number(
+              product.estoque_minimo || 0
+            );
+
+        }
+
+      }
+
+      /* ----- Observações ----- */
+      const obsInput =
+        $("v_observacoes");
+
+      if (obsInput) {
+
+        if (!obsInput.value.trim()) {
+
+          obsInput.value =
+            product.observacoes || "";
+
+        }
+
+      }
+
+      /* ----- Exibir no catálogo ----- */
+      const catInput =
+        $("v_catalogo");
+
+      if (catInput) {
+
+        catInput.checked =
+          product.exibir_catalogo !== false;
+
+      }
+
+      /* ----- Ativo ----- */
+      const ativoInput =
+        $("v_ativo");
+
+      if (ativoInput) {
+
+        ativoInput.checked =
+          product.ativo !== false;
+
+      }
+
+      /* ----- Aviso na tela ----- */
+      if (hint) {
+
+        if (jaTemVariacoes) {
+
+          hint.textContent =
+            "⚠ Este produto já possui variações cadastradas. " +
+            "Os dados do produto foram preenchidos, mas confira " +
+            "se não está duplicando.";
+
+          hint.style.color =
+            "#b45309";
+
+        } else {
+
+          hint.textContent =
+            "✓ Dados do produto preenchidos automaticamente. " +
+            "Ajuste como quiser.";
+
+          hint.style.color =
+            "#0a7d28";
+
+        }
+
+        hint.style.display = "block";
+
+      }
+
+    }
+    /* ==========================================================
+     * FIM NOVO
+     * ========================================================== */
 
     function newVariation() {
 

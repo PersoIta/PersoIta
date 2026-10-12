@@ -178,6 +178,11 @@
           exibir_catalogo,
           exibir_preco_catalogo,
           observacoes,
+          ncm,
+          cfop,
+          cest,
+          unidade,
+          origem_mercadoria,
           created_at,
           atualizado_em
         `)
@@ -234,6 +239,8 @@
                 <th>Categoria</th>
 
                 <th>Unidade</th>
+
+                <th>NCM</th>
 
                 <th>Preço</th>
 
@@ -294,6 +301,16 @@
                       ${escapeHtml(
                         p.unidade_medida || "UN"
                       )}
+
+                    </td>
+
+                    <td>
+
+                      ${
+                        p.ncm
+                          ? escapeHtml(p.ncm)
+                          : '<span class="muted">—</span>'
+                      }
 
                     </td>
 
@@ -535,6 +552,243 @@
 
           </div>
 
+          <!-- ===== DADOS FISCAIS (NF-e) ===== -->
+
+          <div
+            style="
+              margin-top:20px;
+              padding-top:15px;
+              border-top:1px solid #ddd;
+            "
+          >
+
+            <strong>
+              Dados fiscais (NF-e)
+            </strong>
+
+            <div
+              class="muted"
+              style="
+                font-size:12px;
+                margin-top:4px;
+                margin-bottom:12px;
+              "
+            >
+              Usados na emissão de NF-e.
+              NCM é obrigatório para PJ.
+            </div>
+
+            <div class="grid2">
+
+              <div>
+
+                <label>NCM</label>
+
+                <input
+                  id="p_ncm"
+                  maxlength="8"
+                  placeholder="00000000"
+                  value="${escapeHtml(
+                    p.ncm || ""
+                  )}"
+                  oninput="this.value = this.value.replace(/\D/g, '').slice(0,8)">
+
+                <small class="muted">
+                  8 dígitos, sem pontos
+                </small>
+
+              </div>
+
+              <div>
+
+                <label>CFOP</label>
+
+                <input
+                  id="p_cfop"
+                  maxlength="4"
+                  placeholder="5102"
+                  value="${escapeHtml(
+                    p.cfop || "5102"
+                  )}"
+                  oninput="this.value = this.value.replace(/\D/g, '').slice(0,4)">
+
+              </div>
+
+            </div>
+
+            <div class="grid2">
+
+              <div>
+
+                <label>CEST</label>
+
+                <input
+                  id="p_cest"
+                  maxlength="7"
+                  placeholder="0000000"
+                  value="${escapeHtml(
+                    p.cest || ""
+                  )}"
+                  oninput="this.value = this.value.replace(/\D/g, '').slice(0,7)">
+
+                <small class="muted">
+                  Opcional (substituição tributária)
+                </small>
+
+              </div>
+
+              <div>
+
+                <label>Unidade fiscal</label>
+
+                <select id="p_unidade_fiscal">
+
+                  <option value="UN" ${
+                    (p.unidade || "UN") === "UN"
+                      ? "selected"
+                      : ""
+                  }>UN - Unidade</option>
+
+                  <option value="PC" ${
+                    p.unidade === "PC"
+                      ? "selected"
+                      : ""
+                  }>PC - Peça</option>
+
+                  <option value="CX" ${
+                    p.unidade === "CX"
+                      ? "selected"
+                      : ""
+                  }>CX - Caixa</option>
+
+                  <option value="KG" ${
+                    p.unidade === "KG"
+                      ? "selected"
+                      : ""
+                  }>KG - Quilograma</option>
+
+                  <option value="G" ${
+                    p.unidade === "G"
+                      ? "selected"
+                      : ""
+                  }>G - Grama</option>
+
+                  <option value="L" ${
+                    p.unidade === "L"
+                      ? "selected"
+                      : ""
+                  }>L - Litro</option>
+
+                  <option value="ML" ${
+                    p.unidade === "ML"
+                      ? "selected"
+                      : ""
+                  }>ML - Mililitro</option>
+
+                  <option value="M" ${
+                    p.unidade === "M"
+                      ? "selected"
+                      : ""
+                  }>M - Metro</option>
+
+                  <option value="M2" ${
+                    p.unidade === "M2"
+                      ? "selected"
+                      : ""
+                  }>M2 - Metro quadrado</option>
+
+                  <option value="M3" ${
+                    p.unidade === "M3"
+                      ? "selected"
+                      : ""
+                  }>M3 - Metro cúbico</option>
+
+                  <option value="PAR" ${
+                    p.unidade === "PAR"
+                      ? "selected"
+                      : ""
+                  }>PAR - Par</option>
+
+                  <option value="DZ" ${
+                    p.unidade === "DZ"
+                      ? "selected"
+                      : ""
+                  }>DZ - Dúzia</option>
+
+                </select>
+
+              </div>
+
+            </div>
+
+            <div>
+
+              <label>Origem da mercadoria</label>
+
+              <select id="p_origem_mercadoria">
+
+                <option value="0" ${
+                  (p.origem_mercadoria || "0") === "0"
+                    ? "selected"
+                    : ""
+                }>0 - Nacional</option>
+
+                <option value="1" ${
+                  p.origem_mercadoria === "1"
+                    ? "selected"
+                    : ""
+                }>1 - Estrangeira (importação direta)</option>
+
+                <option value="2" ${
+                  p.origem_mercadoria === "2"
+                    ? "selected"
+                    : ""
+                }>2 - Estrangeira (mercado interno)</option>
+
+                <option value="3" ${
+                  p.origem_mercadoria === "3"
+                    ? "selected"
+                    : ""
+                }>3 - Nacional c/ importação 40%–70%</option>
+
+                <option value="4" ${
+                  p.origem_mercadoria === "4"
+                    ? "selected"
+                    : ""
+                }>4 - Nacional (processos produtivos básicos)</option>
+
+                <option value="5" ${
+                  p.origem_mercadoria === "5"
+                    ? "selected"
+                    : ""
+                }>5 - Nacional c/ importação ≤ 40%</option>
+
+                <option value="6" ${
+                  p.origem_mercadoria === "6"
+                    ? "selected"
+                    : ""
+                }>6 - Estrangeira (sem similar nacional)</option>
+
+                <option value="7" ${
+                  p.origem_mercadoria === "7"
+                    ? "selected"
+                    : ""
+                }>7 - Estrangeira (mercado interno, sem similar)</option>
+
+                <option value="8" ${
+                  p.origem_mercadoria === "8"
+                    ? "selected"
+                    : ""
+                }>8 - Nacional c/ importação > 70%</option>
+
+              </select>
+
+            </div>
+
+          </div>
+
+          <!-- ===== FIM DADOS FISCAIS ===== -->
+
           <label>
 
             <input
@@ -619,7 +873,10 @@
         productForm({
           ativo: true,
           exibir_catalogo: true,
-          exibir_preco_catalogo: true
+          exibir_preco_catalogo: true,
+          cfop: "5102",
+          unidade: "UN",
+          origem_mercadoria: "0"
         })
       );
 
@@ -689,6 +946,29 @@
 
       }
 
+      /* ===== Validação do NCM ===== */
+
+      const ncmValue =
+        $("p_ncm")
+          .value
+          .replace(/\D/g, "");
+
+      if (
+        ncmValue &&
+        ncmValue.length !== 8
+      ) {
+
+        alert(
+          "O NCM deve ter exatamente 8 dígitos.\n\n" +
+          "Valor informado: " +
+          (ncmValue || "(vazio)")
+        );
+
+        return;
+      }
+
+      /* ===== Fim da validação ===== */
+
       const payload = {
 
         id_loja:
@@ -734,6 +1014,31 @@
           Number(
             $("p_minimo").value || 0
           ),
+
+        /* ===== Dados fiscais ===== */
+
+        ncm:
+          ncmValue || null,
+
+        cfop:
+          $("p_cfop")
+            .value
+            .replace(/\D/g, "") || "5102",
+
+        cest:
+          $("p_cest")
+            .value
+            .replace(/\D/g, "") || null,
+
+        unidade:
+          $("p_unidade_fiscal")
+            .value || "UN",
+
+        origem_mercadoria:
+          $("p_origem_mercadoria")
+            .value || "0",
+
+        /* ===== Fim dados fiscais ===== */
 
         ativo:
           $("p_ativo").checked,
