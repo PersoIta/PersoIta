@@ -232,7 +232,13 @@
         .eq("id_loja", s.id_loja)
         .order("data_movimento", { ascending: false });
       if (e) throw e;
-      movements = data || [];
+      movements = (data || []).filter(m => {
+          const descricao = String(m.descricao || "")
+              .trim()
+              .toLowerCase();
+
+          return descricao !== "cartão de crédito";
+      });
       years();
       render();
     } catch (e) {
