@@ -107,41 +107,30 @@
      *   SKU-YYYYMMDDHHMMSS-XXX
      * Ex.: SKU-20251008143022-472
      */
-    function generateSku() {
-      const now = new Date();
+    function generateSku(nomeProduto, idProduto) {
+      const nome = String(nomeProduto || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9]/g, "")
+        .toUpperCase();
 
-      const y = now.getFullYear();
+      const prefixos = [
+        { palavras: ["CANECA"], sigla: "CAN" },
+        { palavras: ["CHINELO"], sigla: "CHI" },
+        { palavras: ["CAMISETA", "CAMISA"], sigla: "CAM" }
+      ];
 
-      const m = String(
-        now.getMonth() + 1
-      ).padStart(2, "0");
-
-      const d = String(
-        now.getDate()
-      ).padStart(2, "0");
-
-      const h = String(
-        now.getHours()
-      ).padStart(2, "0");
-
-      const mi = String(
-        now.getMinutes()
-      ).padStart(2, "0");
-
-      const s = String(
-        now.getSeconds()
-      ).padStart(2, "0");
-
-      const random = String(
-        Math.floor(Math.random() * 1000)
-      ).padStart(3, "0");
-
-      return (
-        "SKU-" +
-        y + m + d + h + mi + s +
-        "-" +
-        random
+      const regra = prefixos.find(item =>
+        item.palavras.some(palavra => nome.startsWith(palavra))
       );
+
+      const prefixo = regra
+        ? regra.sigla
+        : nome.substring(0, 3) || "PRO";
+
+      const numero = String(idProduto).padStart(5, "0");
+
+      return `${prefixo}-${numero}`;
     }
 
     async function loadCategories() {
@@ -909,200 +898,130 @@
     }
 
     async function saveProduct(ev, id) {
+  ev.preventDefault();
 
-      ev.preventDefault();
+  if (!currentStore) {
+    alert("Não foi possível identificar a loja.");
+    return;
+  }
 
-      if (!currentStore) {
+  const nomeProduto = $("p_nome").value.trim();
 
-        alert(
-          "Não foi possível identificar a loja."
-        );
+  if (!nomeProduto) {
+    alert("Informe o nome do produto.");
+    return;
+  }
 
-        return;
-      }
+  // Validação do NCM
+  const ncmValue = $("p_ncm").value.replace(/\D/g, "");
 
-      const skuInput =
-        $("p_sku");
+  if (ncmValue && ncmValue.length !== 8) {
+    alert(
+      "O NCM deve ter exatamente 8 dígitos.\n\n" +
+      "Valor informado: " + ncmValue
+    );
+    return;
+  }
 
-      /*
-       * Em edição: reaproveita o SKU atual.
-       * Em cadastro novo: gera um SKU novo.
-       */
-      let sku;
+  const payload = {
+    id_loja: currentStore.id_loja,
+    nome: nomeProduto,
 
-      if (id) {
+    categoria_id: $("p_categoria").value
+      ? Number($("p_categoria").value)
+      : null,
 
-        sku =
-          skuInput &&
-          skuInput.value &&
-          skuInput.value !==
-            "Gerado automaticamente"
-            ? skuInput.value.trim()
-            : generateSku();
+    descricao: $("p_descricao").value.trim() || null,
+    unidade_medida: $("p_unidade").value.trim() || "UN",
 
-      } else {
+    preco_venda: Number($("p_preco").value || 0),
+    preco_custo: Number($("p_custo").value || 0),
+    estoque_minimo: Number($("p_minimo").value || 0),
 
-        sku = generateSku();
+    ncm: ncmValue || null,
+    cfop: $("p_cfop").value.replace(/\D/g, "") || "5102",
+    cest: $("p_cest").value.replace(/\D/g, "") || null,
 
-      }
+    unidade: $("p_unidade_fiscal").value || "UN",
+    origem_mercadoria: $("p_origem_mercadoria").value || "0",
 
-      /* ===== Validação do NCM ===== */
+    ativo: $("p_ativo").checked,
+    exibir_catalogo: $("p_catalogo").checked,
+    exibir_preco_catalogo: $("p_preco_catalogo").checked,
 
-      const ncmValue =
-        $("p_ncm")
-          .value
-          .replace(/\D/g, "");
+    observacoes: $("p_observacoes").value.trim() || null
+  };
 
-      if (
-        ncmValue &&
-        ncmValue.length !== 8
-      ) {
+  let result;
 
-        alert(
-          "O NCM deve ter exatamente 8 dígitos.\n\n" +
-          "Valor informado: " +
-          (ncmValue || "(vazio)")
-        );
-
-        return;
-      }
-
-      /* ===== Fim da validação ===== */
-
-      const payload = {
-
-        id_loja:
-          currentStore.id_loja,
-
-        sku:
-          sku,
-
-        nome:
-          $("p_nome")
-            .value
-            .trim(),
-
-        categoria_id:
-          $("p_categoria")
-            .value
-            ? Number(
-                $("p_categoria").value
-              )
-            : null,
-
-        descricao:
-          $("p_descricao")
-            .value
-            .trim() || null,
-
-        unidade_medida:
-          $("p_unidade")
-            .value
-            .trim() || "UN",
-
-        preco_venda:
-          Number(
-            $("p_preco").value || 0
-          ),
-
-        preco_custo:
-          Number(
-            $("p_custo").value || 0
-          ),
-
-        estoque_minimo:
-          Number(
-            $("p_minimo").value || 0
-          ),
-
-        /* ===== Dados fiscais ===== */
-
-        ncm:
-          ncmValue || null,
-
-        cfop:
-          $("p_cfop")
-            .value
-            .replace(/\D/g, "") || "5102",
-
-        cest:
-          $("p_cest")
-            .value
-            .replace(/\D/g, "") || null,
-
-        unidade:
-          $("p_unidade_fiscal")
-            .value || "UN",
-
-        origem_mercadoria:
-          $("p_origem_mercadoria")
-            .value || "0",
-
-        /* ===== Fim dados fiscais ===== */
-
-        ativo:
-          $("p_ativo").checked,
-
-        exibir_catalogo:
-          $("p_catalogo").checked,
-
-        exibir_preco_catalogo:
-          $("p_preco_catalogo").checked,
-
-        observacoes:
-          $("p_observacoes")
-            .value
-            .trim() || null
-
-      };
-
-      console.log(
-        "Salvando produto:",
-        payload
+  try {
+    if (id) {
+      // Edição: preserva o SKU existente.
+      const produtoAtual = products.find(
+        p => String(p.id) === String(id)
       );
 
-      let result;
+      payload.sku = produtoAtual?.sku ||
+        generateSku(nomeProduto, id);
 
-      if (id) {
-
-        result = await db
-          .from("gestao_loja_produtos")
-          .update(payload)
-          .eq("id", id)
-          .eq(
-            "id_loja",
-            currentStore.id_loja
-          );
-
-      } else {
-
-        result = await db
-          .from("gestao_loja_produtos")
-          .insert(payload);
-
-      }
+      result = await db
+        .from("gestao_loja_produtos")
+        .update(payload)
+        .eq("id", id)
+        .eq("id_loja", currentStore.id_loja);
 
       if (result.error) {
-
-        console.error(
-          "Erro ao salvar produto:",
-          result.error
-        );
-
-        alert(
-          "Erro ao salvar produto:\n\n" +
-          (result.error.message ||
-            "Erro desconhecido.")
-        );
-
-        return;
+        throw result.error;
       }
 
-      closeModal();
+    } else {
+      // Cadastro: cria primeiro o produto para obter seu ID.
+      result = await db
+        .from("gestao_loja_produtos")
+        .insert({
+          ...payload,
+          sku: "PENDENTE"
+        })
+        .select("id")
+        .single();
 
-      await renderProducts();
+      if (result.error) {
+        throw result.error;
+      }
 
+      const idProduto = result.data.id;
+
+      // Gera o SKU usando o nome e o ID real.
+      const sku = generateSku(nomeProduto, idProduto);
+
+      // Atualiza o registro com o SKU definitivo.
+      const atualizacao = await db
+        .from("gestao_loja_produtos")
+        .update({ sku })
+        .eq("id", idProduto)
+        .eq("id_loja", currentStore.id_loja);
+
+      if (atualizacao.error) {
+        throw new Error(
+          "O produto foi cadastrado, mas não foi possível " +
+          "atualizar o SKU. ID do produto: " + idProduto +
+          ". Erro: " + atualizacao.error.message
+        );
+      }
     }
+
+    closeModal();
+    await renderProducts();
+
+  } catch (e) {
+    console.error("Erro ao salvar produto:", e);
+
+    alert(
+      "Erro ao salvar produto:\n\n" +
+      (e.message || "Erro desconhecido.")
+    );
+  }
+}
 
     document.addEventListener(
       "DOMContentLoaded",
