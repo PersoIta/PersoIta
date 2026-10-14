@@ -5,16 +5,6 @@ let orders = [];
 let currentOrderItems = [];
 let editingOrderId = null;
 
-/* =========================================================
-   ===== MARCO DE ATIVAÇÃO DO SISTEMA DE PAGAMENTOS =====
-   ⚠️ AJUSTE para o momento em que você publicou este sistema.
-   Pedidos confirmados ANTES dessa data, sem nenhum pagamento
-   novo (adiantamento/restante) registrado, são tratados como
-   legados (já pagos) e não mostram botões de pagamento.
-   ========================================================= */
-window.__PAGAMENTOS_ATIVADO_EM = "2026-10-15T00:00:00.000Z";
-/* ===== FIM ===== */
-
 function orderMoney(value) {
   return Number(value || 0).toLocaleString("pt-BR", {
     style: "currency",
@@ -392,10 +382,9 @@ function renderOrders() {
             `;
 
             // Botões rápidos de pagamento
-            // (pendente ou confirmado, não legado, com valor a pagar)
+            // (pendente ou confirmado, com valor a pagar)
             if (
               (isPending(order) || isConfirmed(order)) &&
-              !pagInfo.legado &&
               pagInfo.restante > 0
             ) {
               pagCell += `
@@ -2236,16 +2225,11 @@ async function viewOrder(
     isConfirmed(order) && isPJ && !nota;
   /* ===== FIM NOVO ===== */
 
-  /* ===== NOVO: cálculo de pagamento ===== */
-  const listaMovimentos = pagamentos || [];
-
-  // Considera apenas adiantamentos e restante (não a movimentação
-  // original gerada pela confirmação do pedido).
-  const listaPagamentos = listaMovimentos.filter(mov => {
-    const tipo = getTipoPagamento(mov);
-
-    return tipo === "adiantamento" || tipo === "restante";
-  });
+  /* ===== NOVO: cálculo de pagamento =====
+     Considera TODAS as movimentações de Entrada/Registrado do
+     pedido como pagamento, incluindo a movimentação original
+     da venda (que costuma ter o nome do cliente na descrição). */
+  const listaPagamentos = pagamentos || [];
 
   const totalPago = listaPagamentos.reduce(
     (acc, p) => acc + Number(p.valor || 0),
@@ -2254,11 +2238,7 @@ async function viewOrder(
 
   const valorTotalPedido = Number(order.valor_total || 0);
   const restante = Math.max(valorTotalPedido - totalPago, 0);
-
-  // Pedidos legados (confirmados antes da ativação do sistema,
-  // sem pagamentos novos) são tratados como totalmente pagos.
-  const legado = isPedidoLegado(order);
-  const totalmentePago = legado || restante <= 0.005;
+  const totalmentePago = restante <= 0.005;
   /* ===== FIM NOVO ===== */
 
   document.getElementById(
@@ -2514,14 +2494,14 @@ async function viewOrder(
         <div class="order-summary-row">
           <span>Total pago</span>
           <strong style="color:#0a7d28;">
-            ${orderMoney(legado ? valorTotalPedido : totalPago)}
+            ${orderMoney(totalPago)}
           </strong>
         </div>
 
         <div class="order-summary-row">
           <span>Restante</span>
           <strong style="color:${totalmentePago ? "#0a7d28" : "#a80000"};">
-            ${orderMoney(legado ? 0 : restante)}
+            ${orderMoney(restante)}
           </strong>
         </div>
 
@@ -2534,7 +2514,7 @@ async function viewOrder(
           "
         >
           ${
-            !totalmentePago && !legado
+            !totalmentePago
               ? `
                 <button
                   class="btn btn-secondary"
@@ -4423,8 +4403,9 @@ async function loadPagamentosPedidos(orderIds) {
   });
 }
 
-/* Identifica se a movimentação é um adiantamento ou restante
-   pelo texto da descrição */
+/* Identifica o tipo de pagamento pela descrição (apenas para exibir
+   o rótulo na tabela). Se a descrição não contém "adiantamento" nem
+   "restante", é tratada como "pagamento" genérico. */
 function getTipoPagamento(mov) {
   const desc = String(mov.descricao || "").toLowerCase();
 
@@ -4436,67 +4417,15 @@ function getTipoPagamento(mov) {
     return "restante";
   }
 
-  // Movimentação da confirmação original do pedido
-  return "pedido";
+  return "pagamento";
 }
 
-/* Retorna true se o pedido é "legado" — ou seja, foi criado
-   ANTES da ativação do sistema de pagamentos E não tem nenhum
-   pagamento novo (adiantamento/restante) registrado.
-   Esses pedidos são tratados como já pagos, sem mostrar botões. */
-function isPedidoLegado(order) {
-  // Apenas pedidos confirmados podem ser legado.
-  if (!isConfirmed(order)) {
-    return false;
-  }
-
-  const todas =
-    (window.__pagamentosPorPedido || {})[order.id] || [];
-
-  // Se já tem algum adiantamento/restante registrado,
-  // NÃO é legado (é um pedido do novo fluxo).
-  const temPagamentoNovo = todas.some(mov => {
-    const tipo = getTipoPagamento(mov);
-
-    return tipo === "adiantamento" || tipo === "restante";
-  });
-
-  if (temPagamentoNovo) {
-    return false;
-  }
-
-  // Usa created_at (data de criação do registro) como referência.
-  const dataRef =
-    order.created_at ||
-    order.criado_em ||
-    order.data_pedido;
-
-  if (!dataRef) {
-    return false;
-  }
-
-  const dataAtivacao = new Date(window.__PAGAMENTOS_ATIVADO_EM);
-  const dataRefDate = new Date(dataRef);
-
-  if (Number.isNaN(dataRefDate.getTime())) {
-    return false;
-  }
-
-  return dataRefDate < dataAtivacao;
-}
-
+/* Soma TODAS as movimentações de entrada/registrado do pedido
+   como pagamento — incluindo a movimentação original da venda
+   (que costuma ter o nome do cliente na descrição). */
 function getPagamentoInfo(order) {
-  const todas =
+  const pagamentos =
     (window.__pagamentosPorPedido || {})[order.id] || [];
-
-  // Considera apenas adiantamentos e restante para o cálculo.
-  // A movimentação gerada pela confirmação do pedido NÃO deve
-  // contar como "pago", senão o pedido já nasceria quitado.
-  const pagamentos = todas.filter(mov => {
-    const tipo = getTipoPagamento(mov);
-
-    return tipo === "adiantamento" || tipo === "restante";
-  });
 
   const totalPago = pagamentos.reduce(
     (acc, p) => acc + Number(p.valor || 0),
@@ -4506,16 +4435,10 @@ function getPagamentoInfo(order) {
   const valorTotal = Number(order.valor_total || 0);
   const restante = Math.max(valorTotal - totalPago, 0);
 
-  // ===== Pedidos legados são tratados como pagos =====
-  const legado = isPedidoLegado(order);
-
   let texto = "";
   let cor = "#666";
 
-  if (legado) {
-    texto = "Pago";
-    cor = "#0a7d28";
-  } else if (valorTotal <= 0) {
+  if (valorTotal <= 0) {
     texto = "—";
     cor = "#666";
   } else if (totalPago <= 0.005) {
@@ -4534,8 +4457,7 @@ function getPagamentoInfo(order) {
     restante,
     texto,
     cor,
-    pagamentos,
-    legado
+    pagamentos
   };
 }
 
@@ -4555,14 +4477,6 @@ function openPaymentForm(orderId, tipo = "adiantamento") {
   if (!isConfirmed(order) && !isPending(order)) {
     alert(
       "Só é possível registrar pagamentos em pedidos pendentes ou confirmados."
-    );
-    return;
-  }
-
-  // Bloqueia pagamentos em pedidos legados
-  if (isPedidoLegado(order)) {
-    alert(
-      "Este pedido já está considerado como pago."
     );
     return;
   }
@@ -4703,14 +4617,6 @@ async function savePayment(orderId, tipo) {
   if (!isConfirmed(order) && !isPending(order)) {
     alert(
       "Só é possível registrar pagamentos em pedidos pendentes ou confirmados."
-    );
-    return;
-  }
-
-  // Bloqueia pagamentos em pedidos legados
-  if (isPedidoLegado(order)) {
-    alert(
-      "Este pedido já está considerado como pago."
     );
     return;
   }
