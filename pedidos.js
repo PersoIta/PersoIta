@@ -5,6 +5,16 @@ let orders = [];
 let currentOrderItems = [];
 let editingOrderId = null;
 
+/* =========================================================
+   ===== MARCO DE ATIVAÇÃO DO SISTEMA DE PAGAMENTOS =====
+   ⚠️ AJUSTE para o momento em que você publicou este sistema.
+   Pedidos confirmados ANTES dessa data, sem nenhum pagamento
+   novo (adiantamento/restante) registrado, são tratados como
+   legados (já pagos) e não mostram botões de pagamento.
+   ========================================================= */
+window.__PAGAMENTOS_ATIVADO_EM = "2026-10-15T00:00:00.000Z";
+/* ===== FIM ===== */
+
 function orderMoney(value) {
   return Number(value || 0).toLocaleString("pt-BR", {
     style: "currency",
@@ -267,6 +277,12 @@ async function loadOrders() {
   }
   /* ===== FIM NOVO ===== */
 
+  /* ===== NOVO: carrega pagamentos/adiantamentos em lote ===== */
+  await loadPagamentosPedidos(
+    orders.map(order => order.id)
+  );
+  /* ===== FIM NOVO ===== */
+
   renderOrders();
 }
 
@@ -314,6 +330,7 @@ function renderOrders() {
             <th>Status</th>
             <th>Valor</th>
             <th>NF-e</th>
+            <th>Pagamento</th>
             <th style="text-align:right;">
               Ações
             </th>
@@ -365,6 +382,45 @@ function renderOrders() {
             }
             /* ===== FIM NOVO ===== */
 
+            /* ===== NOVO: célula de Pagamento ===== */
+            const pagInfo = getPagamentoInfo(order);
+
+            let pagCell = `
+              <span style="color:${pagInfo.cor};font-weight:600;font-size:12px;">
+                ${escapeHtml(pagInfo.texto)}
+              </span>
+            `;
+
+            // Botões rápidos de pagamento
+            // (pendente ou confirmado, não legado, com valor a pagar)
+            if (
+              (isPending(order) || isConfirmed(order)) &&
+              !pagInfo.legado &&
+              pagInfo.restante > 0
+            ) {
+              pagCell += `
+                <div style="display:flex;gap:5px;margin-top:5px;flex-wrap:wrap;">
+                  <button
+                    class="btn btn-secondary"
+                    style="font-size:11px;padding:3px 6px;"
+                    onclick="openPaymentForm(${order.id}, 'adiantamento')"
+                    title="Registrar adiantamento"
+                  >
+                    + Adiantar
+                  </button>
+                  <button
+                    class="btn btn-primary"
+                    style="font-size:11px;padding:3px 6px;"
+                    onclick="openPaymentForm(${order.id}, 'restante')"
+                    title="Pagar valor restante"
+                  >
+                    ✓ Pagar restante
+                  </button>
+                </div>
+              `;
+            }
+            /* ===== FIM NOVO ===== */
+
             return `
               <tr>
                 <td>
@@ -400,6 +456,10 @@ function renderOrders() {
 
                 <td>
                   ${nfCell}
+                </td>
+
+                <td>
+                  ${pagCell}
                 </td>
 
                 <td style="text-align:right;">
@@ -2154,6 +2214,19 @@ async function viewOrder(
     .maybeSingle();
   /* ===== FIM NOVO ===== */
 
+  /* ===== NOVO: busca pagamentos/adiantamentos do pedido ===== */
+  const {
+    data: pagamentos
+  } = await db
+    .from("gestao_loja_movimentos_financeiros")
+    .select("*")
+    .eq("pedido_id", orderId)
+    .eq("id_loja", currentStore.id_loja)
+    .eq("tipo", "Entrada")
+    .eq("status", "Registrado")
+    .order("id");
+  /* ===== FIM NOVO ===== */
+
   const client =
     order.gestao_loja_clientes;
 
@@ -2161,6 +2234,31 @@ async function viewOrder(
   const isPJ = isPessoaJuridica(client);
   const canEmitNFe =
     isConfirmed(order) && isPJ && !nota;
+  /* ===== FIM NOVO ===== */
+
+  /* ===== NOVO: cálculo de pagamento ===== */
+  const listaMovimentos = pagamentos || [];
+
+  // Considera apenas adiantamentos e restante (não a movimentação
+  // original gerada pela confirmação do pedido).
+  const listaPagamentos = listaMovimentos.filter(mov => {
+    const tipo = getTipoPagamento(mov);
+
+    return tipo === "adiantamento" || tipo === "restante";
+  });
+
+  const totalPago = listaPagamentos.reduce(
+    (acc, p) => acc + Number(p.valor || 0),
+    0
+  );
+
+  const valorTotalPedido = Number(order.valor_total || 0);
+  const restante = Math.max(valorTotalPedido - totalPago, 0);
+
+  // Pedidos legados (confirmados antes da ativação do sistema,
+  // sem pagamentos novos) são tratados como totalmente pagos.
+  const legado = isPedidoLegado(order);
+  const totalmentePago = legado || restante <= 0.005;
   /* ===== FIM NOVO ===== */
 
   document.getElementById(
@@ -2354,6 +2452,138 @@ async function viewOrder(
               : ""
           }
         </div>
+      </div>
+    `;
+  }
+  /* ===== FIM NOVO ===== */
+
+  /* ===== NOVO: bloco de Pagamentos ===== */
+  let pagamentosBlock = "";
+
+  if (
+    isConfirmed(order) ||
+    isPending(order) ||
+    listaPagamentos.length > 0
+  ) {
+    const pagamentosHtml = listaPagamentos.length
+      ? listaPagamentos.map(p => {
+          const tipo = getTipoPagamento(p);
+
+          const rotulo =
+            tipo === "adiantamento"
+              ? "Adiantamento"
+              : tipo === "restante"
+                ? "Pagamento do restante"
+                : "Pagamento";
+
+          return `
+            <tr>
+              <td>${formatDateTime(p.data_movimento || p.criado_em)}</td>
+              <td>${escapeHtml(rotulo)}</td>
+              <td>${escapeHtml(p.descricao || "-")}</td>
+              <td>${escapeHtml(p.forma_pagamento || "-")}</td>
+              <td><strong>${orderMoney(p.valor)}</strong></td>
+            </tr>
+          `;
+        }).join("")
+      : `
+          <tr>
+            <td colspan="5" class="muted" style="text-align:center;">
+              Nenhum pagamento registrado.
+            </td>
+          </tr>
+        `;
+
+    pagamentosBlock = `
+      <div
+        class="card"
+        style="
+          margin-top:20px;
+          border-left:4px solid ${totalmentePago ? "#0a7d28" : "#b06a00"};
+        "
+      >
+        <h3 style="margin-top:0;">
+          💰 Pagamentos
+        </h3>
+
+        <div class="order-summary-row">
+          <span>Valor total do pedido</span>
+          <strong>${orderMoney(valorTotalPedido)}</strong>
+        </div>
+
+        <div class="order-summary-row">
+          <span>Total pago</span>
+          <strong style="color:#0a7d28;">
+            ${orderMoney(legado ? valorTotalPedido : totalPago)}
+          </strong>
+        </div>
+
+        <div class="order-summary-row">
+          <span>Restante</span>
+          <strong style="color:${totalmentePago ? "#0a7d28" : "#a80000"};">
+            ${orderMoney(legado ? 0 : restante)}
+          </strong>
+        </div>
+
+        <div
+          style="
+            display:flex;
+            gap:10px;
+            flex-wrap:wrap;
+            margin-top:15px;
+          "
+        >
+          ${
+            !totalmentePago && !legado
+              ? `
+                <button
+                  class="btn btn-secondary"
+                  onclick="openPaymentForm(${order.id}, 'adiantamento')"
+                >
+                  + Registrar adiantamento
+                </button>
+
+                <button
+                  class="btn btn-primary"
+                  onclick="openPaymentForm(${order.id}, 'restante')"
+                >
+                  ✓ Pagar restante (${orderMoney(restante)})
+                </button>
+              `
+              : `
+                <span
+                  style="
+                    color:#0a7d28;
+                    font-weight:600;
+                    padding:8px 0;
+                  "
+                >
+                  ✓ Pedido totalmente pago
+                </span>
+              `
+          }
+        </div>
+
+        ${
+          listaPagamentos.length
+            ? `
+              <table class="table" style="margin-top:20px;">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Tipo</th>
+                    <th>Descrição</th>
+                    <th>Forma</th>
+                    <th>Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${pagamentosHtml}
+                </tbody>
+              </table>
+            `
+            : ""
+        }
       </div>
     `;
   }
@@ -2598,6 +2828,8 @@ async function viewOrder(
     </div>
 
     ${nfBlock}
+
+    ${pagamentosBlock}
 
     ${
       order.observacoes
@@ -4149,6 +4381,449 @@ function openNfeFile(url) {
   }
 
   window.open(url, "_blank");
+}
+
+/* ===== FIM NOVO ===== */
+
+/* =========================================================
+   ===== NOVO: ADIANTAMENTO E PAGAMENTO DE PEDIDOS =====
+   Usa a própria tabela gestao_loja_movimentos_financeiros
+   ========================================================= */
+
+// Cache de pagamentos por pedido (usado na listagem)
+window.__pagamentosPorPedido = {};
+
+async function loadPagamentosPedidos(orderIds) {
+  window.__pagamentosPorPedido = {};
+
+  if (!orderIds || !orderIds.length) {
+    return;
+  }
+
+  const { data, error } = await db
+    .from("gestao_loja_movimentos_financeiros")
+    .select("*")
+    .eq("id_loja", currentStore.id_loja)
+    .eq("tipo", "Entrada")
+    .eq("status", "Registrado")
+    .in("pedido_id", orderIds)
+    .order("id");
+
+  if (error) {
+    console.error("Erro ao carregar pagamentos:", error);
+    return;
+  }
+
+  (data || []).forEach(mov => {
+    if (!window.__pagamentosPorPedido[mov.pedido_id]) {
+      window.__pagamentosPorPedido[mov.pedido_id] = [];
+    }
+
+    window.__pagamentosPorPedido[mov.pedido_id].push(mov);
+  });
+}
+
+/* Identifica se a movimentação é um adiantamento ou restante
+   pelo texto da descrição */
+function getTipoPagamento(mov) {
+  const desc = String(mov.descricao || "").toLowerCase();
+
+  if (desc.includes("adiantamento")) {
+    return "adiantamento";
+  }
+
+  if (desc.includes("restante")) {
+    return "restante";
+  }
+
+  // Movimentação da confirmação original do pedido
+  return "pedido";
+}
+
+/* Retorna true se o pedido é "legado" — ou seja, foi criado
+   ANTES da ativação do sistema de pagamentos E não tem nenhum
+   pagamento novo (adiantamento/restante) registrado.
+   Esses pedidos são tratados como já pagos, sem mostrar botões. */
+function isPedidoLegado(order) {
+  // Apenas pedidos confirmados podem ser legado.
+  if (!isConfirmed(order)) {
+    return false;
+  }
+
+  const todas =
+    (window.__pagamentosPorPedido || {})[order.id] || [];
+
+  // Se já tem algum adiantamento/restante registrado,
+  // NÃO é legado (é um pedido do novo fluxo).
+  const temPagamentoNovo = todas.some(mov => {
+    const tipo = getTipoPagamento(mov);
+
+    return tipo === "adiantamento" || tipo === "restante";
+  });
+
+  if (temPagamentoNovo) {
+    return false;
+  }
+
+  // Usa created_at (data de criação do registro) como referência.
+  const dataRef =
+    order.created_at ||
+    order.criado_em ||
+    order.data_pedido;
+
+  if (!dataRef) {
+    return false;
+  }
+
+  const dataAtivacao = new Date(window.__PAGAMENTOS_ATIVADO_EM);
+  const dataRefDate = new Date(dataRef);
+
+  if (Number.isNaN(dataRefDate.getTime())) {
+    return false;
+  }
+
+  return dataRefDate < dataAtivacao;
+}
+
+function getPagamentoInfo(order) {
+  const todas =
+    (window.__pagamentosPorPedido || {})[order.id] || [];
+
+  // Considera apenas adiantamentos e restante para o cálculo.
+  // A movimentação gerada pela confirmação do pedido NÃO deve
+  // contar como "pago", senão o pedido já nasceria quitado.
+  const pagamentos = todas.filter(mov => {
+    const tipo = getTipoPagamento(mov);
+
+    return tipo === "adiantamento" || tipo === "restante";
+  });
+
+  const totalPago = pagamentos.reduce(
+    (acc, p) => acc + Number(p.valor || 0),
+    0
+  );
+
+  const valorTotal = Number(order.valor_total || 0);
+  const restante = Math.max(valorTotal - totalPago, 0);
+
+  // ===== Pedidos legados são tratados como pagos =====
+  const legado = isPedidoLegado(order);
+
+  let texto = "";
+  let cor = "#666";
+
+  if (legado) {
+    texto = "Pago";
+    cor = "#0a7d28";
+  } else if (valorTotal <= 0) {
+    texto = "—";
+    cor = "#666";
+  } else if (totalPago <= 0.005) {
+    texto = "Não pago";
+    cor = "#a80000";
+  } else if (restante <= 0.005) {
+    texto = "Pago";
+    cor = "#0a7d28";
+  } else {
+    texto = `Pago ${orderMoney(totalPago)} · Falta ${orderMoney(restante)}`;
+    cor = "#b06a00";
+  }
+
+  return {
+    totalPago,
+    restante,
+    texto,
+    cor,
+    pagamentos,
+    legado
+  };
+}
+
+/* Abre o formulário de pagamento
+   tipo: "adiantamento" | "restante"
+*/
+function openPaymentForm(orderId, tipo = "adiantamento") {
+  const order =
+    orders.find(o => String(o.id) === String(orderId));
+
+  if (!order) {
+    alert("Pedido não encontrado.");
+    return;
+  }
+
+  // Permite pagamentos em pedidos pendentes e confirmados
+  if (!isConfirmed(order) && !isPending(order)) {
+    alert(
+      "Só é possível registrar pagamentos em pedidos pendentes ou confirmados."
+    );
+    return;
+  }
+
+  // Bloqueia pagamentos em pedidos legados
+  if (isPedidoLegado(order)) {
+    alert(
+      "Este pedido já está considerado como pago."
+    );
+    return;
+  }
+
+  const info = getPagamentoInfo(order);
+
+  if (tipo === "restante" && info.restante <= 0.005) {
+    alert("Este pedido já está totalmente pago.");
+    return;
+  }
+
+  const valorSugerido =
+    tipo === "restante"
+      ? info.restante.toFixed(2)
+      : "";
+
+  const titulo =
+    tipo === "restante"
+      ? `Pagar restante — Pedido #${order.numero || order.id}`
+      : `Adiantamento — Pedido #${order.numero || order.id}`;
+
+  openModal(
+    titulo,
+    `
+      <div class="card" style="margin-bottom:15px;">
+        <p>
+          <strong>Cliente:</strong>
+          ${escapeHtml(
+            order.gestao_loja_clientes?.nome || "-"
+          )}
+        </p>
+
+        <p>
+          <strong>Valor total do pedido:</strong>
+          ${orderMoney(order.valor_total)}
+        </p>
+
+        <p>
+          <strong>Já pago:</strong>
+          <span style="color:#0a7d28;font-weight:600;">
+            ${orderMoney(info.totalPago)}
+          </span>
+        </p>
+
+        <p>
+          <strong>Restante:</strong>
+          <span style="color:#b06a00;font-weight:600;">
+            ${orderMoney(info.restante)}
+          </span>
+        </p>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Valor do pagamento *</label>
+          <input
+            type="number"
+            id="pag_valor"
+            min="0.01"
+            step="0.01"
+            value="${valorSugerido}"
+            placeholder="0,00"
+          >
+        </div>
+
+        <div class="form-group">
+          <label>Data do pagamento</label>
+          <input
+            type="date"
+            id="pag_data"
+            value="${getToday()}"
+          >
+        </div>
+
+        <div class="form-group">
+          <label>Forma de pagamento</label>
+          <select id="pag_forma">
+            <option value="PIX">PIX</option>
+            <option value="Dinheiro">Dinheiro</option>
+            <option value="Cartão de crédito">Cartão de crédito</option>
+            <option value="Cartão de débito">Cartão de débito</option>
+            <option value="Transferência">Transferência</option>
+            <option value="Boleto">Boleto</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Descrição (opcional)</label>
+          <input
+            type="text"
+            id="pag_descricao"
+            placeholder="Ex.: entrada, sinal, parcela..."
+          >
+        </div>
+
+        <div class="form-group full">
+          <label>Observações</label>
+          <textarea
+            id="pag_observacoes"
+            placeholder="Observações sobre o pagamento..."
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button
+          class="btn btn-secondary"
+          type="button"
+          onclick="closeModal()"
+        >
+          Cancelar
+        </button>
+
+        <button
+          class="btn btn-primary"
+          type="button"
+          id="pagSaveButton"
+          onclick="savePayment(${order.id}, '${tipo}')"
+        >
+          Confirmar pagamento
+        </button>
+      </div>
+    `
+  );
+}
+
+async function savePayment(orderId, tipo) {
+  const order =
+    orders.find(o => String(o.id) === String(orderId));
+
+  if (!order) {
+    alert("Pedido não encontrado.");
+    return;
+  }
+
+  // Permite pagamentos em pedidos pendentes e confirmados
+  if (!isConfirmed(order) && !isPending(order)) {
+    alert(
+      "Só é possível registrar pagamentos em pedidos pendentes ou confirmados."
+    );
+    return;
+  }
+
+  // Bloqueia pagamentos em pedidos legados
+  if (isPedidoLegado(order)) {
+    alert(
+      "Este pedido já está considerado como pago."
+    );
+    return;
+  }
+
+  const info = getPagamentoInfo(order);
+
+  const valor = getNumberValue("pag_valor");
+
+  if (!valor || valor <= 0) {
+    alert("Informe um valor de pagamento válido.");
+    return;
+  }
+
+  if (tipo === "restante") {
+    if (valor > info.restante + 0.005) {
+      alert(
+        "O valor informado é maior que o restante do pedido.\n\n" +
+        "Restante: " + orderMoney(info.restante)
+      );
+      return;
+    }
+  }
+
+  const forma =
+    document.getElementById("pag_forma")?.value || "";
+
+  const descricaoExtra =
+    document.getElementById("pag_descricao")?.value.trim() || "";
+
+  const observacoes =
+    document.getElementById("pag_observacoes")?.value.trim() || null;
+
+  const dataPagamento =
+    document.getElementById("pag_data")?.value || getToday();
+
+  const numeroPedido = order.numero || order.id;
+
+  const descricaoBase =
+    tipo === "restante"
+      ? `Restante do pagamento do pedido #${numeroPedido}`
+      : `Adiantamento do pagamento do pedido #${numeroPedido}`;
+
+  let descricao = descricaoExtra
+    ? `${descricaoBase} — ${descricaoExtra}`
+    : descricaoBase;
+
+  if (observacoes) {
+    descricao += `\nObs.: ${observacoes}`;
+  }
+
+  const button = document.getElementById("pagSaveButton");
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Salvando...";
+  }
+
+  try {
+    const dataMovimento = dataPagamento
+      ? new Date(dataPagamento + "T12:00:00").toISOString()
+      : new Date().toISOString();
+
+    const payload = {
+      id_loja: currentStore.id_loja,
+      pedido_id: Number(orderId),
+      tipo: "Entrada",
+      categoria: "Venda",
+      descricao: descricao,
+      valor: Number(valor.toFixed(2)),
+      forma_pagamento: forma || null,
+      status: "Registrado",
+      data_movimento: dataMovimento
+    };
+
+    const { error } = await db
+      .from("gestao_loja_movimentos_financeiros")
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    closeModal();
+
+    await loadOrders();
+
+    await viewOrder(orderId);
+
+    alert(
+      "Pagamento registrado com sucesso!\n\n" +
+      "Valor: " + orderMoney(valor) + "\n" +
+      "Tipo: " +
+      (tipo === "restante"
+        ? "Pagamento do restante"
+        : "Adiantamento")
+    );
+
+  } catch (err) {
+    console.error("Erro ao registrar pagamento:", err);
+
+    alert(
+      "Erro ao registrar pagamento:\n" +
+      (err.message || "Erro desconhecido.")
+    );
+
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Confirmar pagamento";
+    }
+  }
 }
 
 /* ===== FIM NOVO ===== */
