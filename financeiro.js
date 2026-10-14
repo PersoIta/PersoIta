@@ -103,28 +103,50 @@
     filteredMovements = movements.filter(matches);
 
     /* --- Métricas do topo --- */
-    let t = { entries: 0, expenses: 0, reversals: 0, balance: 0, count: 0, reversalCount: 0 };
-    filteredMovements.forEach(m => {
-      const v = +m.valor || 0;
-      if (m.tipo === "Estorno") {
-        t.reversals += v;
-        t.reversalCount++;
-      } else if (m.tipo === "Entrada") {
-        t.entries += v;
-        if (m.status !== "Estornado") t.count++;
-      } else if (m.tipo === "Saída") {
-        t.expenses += v;
-      }
-      t.balance += signed(m);
-    });
+      let t = {
+        entries: 0,
+        expenses: 0,
+        reversals: 0,
+        balance: 0,
+        count: 0,
+        expenseCount: 0,
+        reversalCount: 0
+      };
 
-    $("grossRevenue").textContent   = money(t.entries - t.reversals);
-    $("totalEntries").textContent   = money(t.entries);
-    $("entryCount").textContent     = `${t.count} movimento(s)`;
-    $("totalExpenses").textContent  = money(t.expenses);
-    $("totalReversals").textContent = money(t.reversals);
-    $("reversalCount").textContent  = `${t.reversalCount} estorno(s)`;
-    $("netBalance").textContent     = money(t.balance);
+      filteredMovements.forEach(m => {
+        const v = +m.valor || 0;
+
+        if (m.tipo === "Estorno") {
+          t.reversals += v;
+          t.reversalCount++;
+        } else if (m.tipo === "Entrada") {
+          t.entries += v;
+
+          if (m.status !== "Estornado") {
+            t.count++;
+          }
+        } else if (m.tipo === "Saída") {
+          t.expenses += v;
+
+          if (m.status !== "Estornado") {
+            t.expenseCount++;
+          }
+        }
+
+        t.balance += signed(m);
+      });
+
+      $("grossRevenue").textContent = money(t.entries - t.reversals);
+      $("totalEntries").textContent = money(t.entries);
+      $("entryCount").textContent = `${t.count} movimento(s)`;
+
+      $("totalExpenses").textContent = money(t.expenses);
+      $("expenseCount").textContent = `${t.expenseCount} movimento(s)`;
+
+      $("totalReversals").textContent = money(t.reversals);
+      $("reversalCount").textContent = `${t.reversalCount} estorno(s)`;
+
+      $("netBalance").textContent = money(t.balance);
 
     /* --- Resumo por período --- */
     let g = $("groupBy").value, groups = new Map();
