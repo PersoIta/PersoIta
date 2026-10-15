@@ -837,7 +837,7 @@ function buildPurchaseForm() {
     <div
       style="
         display:grid;
-        grid-template-columns:1fr 1fr;
+        grid-template-columns:1fr 1fr 1fr;
         gap:15px;
         margin-top:15px;
       "
@@ -852,6 +852,27 @@ function buildPurchaseForm() {
           id="purchaseInvoice"
           placeholder="Número da NF"
         >
+      </div>
+
+      <div>
+        <label>
+          Forma de pagamento
+        </label>
+
+        <select
+          id="purchasePayment"
+          required
+        >
+          <option value="">Selecione...</option>
+          <option value="Dinheiro">Dinheiro</option>
+          <option value="Pix">Pix</option>
+          <option value="Cartão de débito">Cartão de débito</option>
+          <option value="Cartão de crédito">Cartão de crédito</option>
+          <option value="Transferência bancária">Transferência bancária</option>
+          <option value="Boleto">Boleto</option>
+          <option value="A prazo">A prazo</option>
+          <option value="Outro">Outro</option>
+        </select>
       </div>
 
       <div>
@@ -1656,7 +1677,9 @@ async function savePurchase() {
     observacoes:
       document.getElementById(
         "purchaseNotes"
-      ).value.trim()
+      ).value.trim(),
+
+      forma_pagamento: document.getElementById("purchasePayment").value,
   };
 
   const {
@@ -2285,6 +2308,11 @@ async function editPurchase(
     "hidden"
   );
 
+    document.getElementById(
+    "purchasePayment"
+  ).value =
+    purchase.forma_pagamento || "";
+
   document.querySelector(
     ".modal-card"
   ).style.maxWidth =
@@ -2348,7 +2376,7 @@ async function editPurchase(
 
 async function updatePurchase(
   purchaseId
-) {
+) {  
   const supplierId =
     document.getElementById(
       "purchaseSupplier"
@@ -2432,7 +2460,7 @@ async function updatePurchase(
       0
     );
 
-  const purchaseData = {
+    const purchaseData = {
     fornecedor_id:
       Number(
         supplierId
@@ -2463,7 +2491,12 @@ async function updatePurchase(
     observacoes:
       document.getElementById(
         "purchaseNotes"
-      ).value.trim()
+      ).value.trim(),
+
+    forma_pagamento:
+      document.getElementById(
+        "purchasePayment"
+      ).value
   };
 
   const {
