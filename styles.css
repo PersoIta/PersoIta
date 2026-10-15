@@ -21,6 +21,32 @@ body {
     color: var(--text);
 }
 
+.section-filters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.filter-select {
+  padding: 8px 12px;
+  border: 1px solid #d9dde5;
+  border-radius: 7px;
+  background: white;
+  color: #343a46;
+  font-size: 13px;
+  min-width: 180px;
+  height: 36px;
+  cursor: pointer;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #5145cd;
+  box-shadow: 0 0 0 3px rgba(81, 69, 205, 0.15);
+}
+
 button,
 input,
 select,

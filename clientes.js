@@ -2,7 +2,9 @@ let clients = [];
 let clientOrders = [];
 let editingClientId = null;
 
+
 document.addEventListener("DOMContentLoaded", async () => {
+
   const authenticated = await requireAuth();
 
   if (!authenticated) {
@@ -14,49 +16,56 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   if (!currentStore) {
+
     const contextLoaded = await loadUserContext();
 
     if (!contextLoaded) {
       return;
     }
+
   }
 
   await loadClientsPage();
+
 });
 
+
 async function loadClientsPage() {
+
   const container = $("clientsList");
 
   if (container) {
+
     container.innerHTML = `
       <div class="empty-clients">
         Carregando clientes...
       </div>
     `;
+
   }
 
   try {
+
     if (!currentStore || !currentStore.id_loja) {
+
       console.error(
         "Loja não encontrada:",
         currentStore
       );
 
       if (container) {
+
         container.innerHTML = `
           <div class="empty-clients">
             Não foi possível identificar a loja.
           </div>
         `;
+
       }
 
       return;
-    }
 
-    console.log(
-      "Carregando clientes da loja:",
-      currentStore.id_loja
-    );
+    }
 
     const clientsResult =
       await db
@@ -68,41 +77,35 @@ async function loadClientsPage() {
         )
         .order(
           "nome",
-          {
-            ascending: true
-          }
+          { ascending: true }
         );
 
     if (clientsResult.error) {
+
       console.error(
         "Erro ao carregar clientes:",
         clientsResult.error
       );
 
       if (container) {
+
         container.innerHTML = `
           <div class="empty-clients">
             Erro ao carregar clientes.
             <br>
             <small>
-              ${escapeHtml(
-                clientsResult.error.message
-              )}
+              ${escapeHtml(clientsResult.error.message)}
             </small>
           </div>
         `;
+
       }
 
       return;
+
     }
 
-    clients =
-      clientsResult.data || [];
-
-    console.log(
-      "Clientes carregados:",
-      clients
-    );
+    clients = clientsResult.data || [];
 
     const ordersResult =
       await db
@@ -116,308 +119,269 @@ async function loadClientsPage() {
         )
         .order(
           "data_pedido",
-          {
-            ascending: false
-          }
+          { ascending: false }
         );
 
     if (ordersResult.error) {
+
       console.error(
         "Erro ao carregar pedidos:",
         ordersResult.error
       );
 
       clientOrders = [];
-    } else {
-      clientOrders =
-        ordersResult.data || [];
 
-      console.log(
-        "Pedidos carregados:",
-        clientOrders
-      );
+    } else {
+
+      clientOrders = ordersResult.data || [];
+
     }
 
     updateClientStats();
     renderClients();
 
   } catch (error) {
+
     console.error(
       "Erro ao carregar página de clientes:",
       error
     );
 
     if (container) {
+
       container.innerHTML = `
         <div class="empty-clients">
           Erro ao carregar os dados dos clientes.
         </div>
       `;
+
     }
+
   }
+
 }
+
+
+/* ======================================================
+   HELPERS DE PEDIDOS
+   ====================================================== */
 
 function getConfirmedOrders() {
-  return clientOrders.filter(
-    order => {
-      const status =
-        String(
-          order.status || ""
-        )
-          .trim()
-          .toLowerCase();
 
-      return (
-        status === "confirmado" ||
-        status === "confirmada"
-      );
-    }
-  );
+  return clientOrders.filter(order => {
+
+    const status =
+      String(order.status || "")
+        .trim()
+        .toLowerCase();
+
+    return (
+      status === "confirmado" ||
+      status === "confirmada"
+    );
+
+  });
+
 }
+
 
 function getClientOrders(clientId) {
+
   return getConfirmedOrders()
-    .filter(
-      order =>
-        Number(order.cliente_id) ===
-        Number(clientId)
+    .filter(order =>
+      Number(order.cliente_id) === Number(clientId)
     )
-    .sort(
-      (a, b) => {
-        const dateA =
-          new Date(
-            a.data_pedido
-          ).getTime() || 0;
+    .sort((a, b) => {
 
-        const dateB =
-          new Date(
-            b.data_pedido
-          ).getTime() || 0;
+      const dateA =
+        new Date(a.data_pedido).getTime() || 0;
 
-        return dateB - dateA;
-      }
-    );
+      const dateB =
+        new Date(b.data_pedido).getTime() || 0;
+
+      return dateB - dateA;
+
+    });
+
 }
 
+
 function getClientStats(clientId) {
-  const orders =
-    getClientOrders(clientId);
+
+  const orders = getClientOrders(clientId);
 
   const total =
     orders.reduce(
       (sum, order) =>
-        sum +
-        Number(
-          order.valor_total || 0
-        ),
+        sum + Number(order.valor_total || 0),
       0
     );
 
   const lastOrder =
-    orders.length > 0
-      ? orders[0]
-      : null;
+    orders.length > 0 ? orders[0] : null;
 
   return {
     orders,
     total,
     lastOrder,
-    quantity:
-      orders.length
+    quantity: orders.length
   };
+
 }
 
+
+/* ======================================================
+   ESTATÍSTICAS DO TOPO
+   ====================================================== */
+
 function updateClientStats() {
-  const confirmedOrders =
-    getConfirmedOrders();
+
+  const confirmedOrders = getConfirmedOrders();
 
   const totalSales =
     confirmedOrders.reduce(
       (sum, order) =>
-        sum +
-        Number(
-          order.valor_total || 0
-        ),
+        sum + Number(order.valor_total || 0),
       0
     );
 
-  const clientsWithPurchase =
-    new Set();
+  const clientsWithPurchase = new Set();
 
-  confirmedOrders.forEach(
-    order => {
-      if (
-        order.cliente_id !==
-          null &&
-        order.cliente_id !==
-          undefined
-      ) {
-        clientsWithPurchase.add(
-          Number(
-            order.cliente_id
-          )
-        );
-      }
+  confirmedOrders.forEach(order => {
+
+    if (
+      order.cliente_id !== null &&
+      order.cliente_id !== undefined
+    ) {
+
+      clientsWithPurchase.add(Number(order.cliente_id));
+
     }
-  );
+
+  });
 
   const withoutPurchase =
-    clients.filter(
-      client =>
-        !clientsWithPurchase.has(
-          Number(client.id)
-        )
+    clients.filter(client =>
+      !clientsWithPurchase.has(Number(client.id))
     ).length;
 
   const active =
-    clients.filter(
-      client =>
-        client.ativo === true
-    ).length;
+    clients.filter(client => client.ativo === true).length;
 
   if ($("totalClients")) {
+
     $("totalClients").textContent =
-      clients.length.toLocaleString(
-        "pt-BR"
-      );
+      clients.length.toLocaleString("pt-BR");
+
   }
 
   if ($("activeClients")) {
+
     $("activeClients").textContent =
-      active.toLocaleString(
-        "pt-BR"
-      );
+      active.toLocaleString("pt-BR");
+
   }
 
   if ($("totalClientSales")) {
+
     $("totalClientSales").textContent =
       money(totalSales);
+
   }
 
   if ($("clientsWithoutPurchase")) {
+
     $("clientsWithoutPurchase").textContent =
-      withoutPurchase.toLocaleString(
-        "pt-BR"
-      );
+      withoutPurchase.toLocaleString("pt-BR");
+
   }
+
 }
 
+
+/* ======================================================
+   LISTAGEM
+   ====================================================== */
+
 function renderClients() {
-  const container =
-    $("clientsList");
+
+  const container = $("clientsList");
 
   if (!container) {
     return;
   }
 
   const search =
-    (
-      $("clientSearch")?.value ||
-      ""
-    )
+    ($("clientSearch")?.value || "")
       .toLowerCase()
       .trim();
 
   const filter =
-    $("clientFilter")?.value ||
-    "todos";
+    $("clientFilter")?.value || "todos";
 
-  const filtered =
-    clients.filter(
-      client => {
+  const filtered = clients.filter(client => {
 
-        const name =
-          String(
-            client.nome || ""
-          )
-            .toLowerCase();
+    const name =
+      String(client.nome || "").toLowerCase();
 
-        const cpfCnpj =
-          String(
-            client.cpf_cnpj || ""
-          )
-            .toLowerCase();
+    const cpfCnpj =
+      String(client.cpf_cnpj || "").toLowerCase();
 
-        const phone =
-          String(
-            client.telefone || ""
-          )
-            .toLowerCase();
+    const phone =
+      String(client.telefone || "").toLowerCase();
 
-        const whatsapp =
-          String(
-            client.whatsapp || ""
-          )
-            .toLowerCase();
+    const whatsapp =
+      String(client.whatsapp || "").toLowerCase();
 
-        const matchesSearch =
-          !search ||
-          name.includes(
-            search
-          ) ||
-          cpfCnpj.includes(
-            search
-          ) ||
-          phone.includes(
-            search
-          ) ||
-          whatsapp.includes(
-            search
-          );
+    const matchesSearch =
+      !search ||
+      name.includes(search) ||
+      cpfCnpj.includes(search) ||
+      phone.includes(search) ||
+      whatsapp.includes(search);
 
-        if (!matchesSearch) {
-          return false;
-        }
+    if (!matchesSearch) {
+      return false;
+    }
 
-        if (
-          filter === "ativos" &&
-          client.ativo !== true
-        ) {
-          return false;
-        }
+    if (filter === "ativos" && client.ativo !== true) {
+      return false;
+    }
 
-        if (
-          filter === "inativos" &&
-          client.ativo === true
-        ) {
-          return false;
-        }
+    if (filter === "inativos" && client.ativo === true) {
+      return false;
+    }
 
-        const clientType =
-          String(
-            client.tipo_cliente ||
-            ""
-          )
-            .toLowerCase();
+    const clientType =
+      String(client.tipo_cliente || "").toLowerCase();
 
-        if (
-          filter === "fisicos" &&
-          clientType !== "fisico"
-        ) {
-          return false;
-        }
+    if (
+      filter === "fisicos" &&
+      !clientType.includes("fisic")
+    ) {
+      return false;
+    }
 
-        if (
-          filter === "juridicos" &&
-          clientType !== "juridico"
-        ) {
-          return false;
-        }
+    if (
+      filter === "juridicos" &&
+      !clientType.includes("jurid")
+    ) {
+      return false;
+    }
 
-        if (
-          filter === "sem_compra" &&
-          getClientStats(
-            client.id
-          ).quantity > 0
-        ) {
-          return false;
-        }
+    if (
+      filter === "sem_compra" &&
+      getClientStats(client.id).quantity > 0
+    ) {
+      return false;
+    }
 
-        return true;
-      }
-    );
+    return true;
+
+  });
 
   if (!filtered.length) {
+
     container.innerHTML = `
       <div class="empty-clients">
         Nenhum cliente encontrado.
@@ -425,50 +389,37 @@ function renderClients() {
     `;
 
     return;
+
   }
 
   container.innerHTML =
     filtered
-      .map(
-        client =>
-          renderClientCard(
-            client
-          )
-      )
+      .map(client => renderClientCard(client))
       .join("");
+
 }
 
-function renderClientCard(client) {
-  const stats =
-    getClientStats(
-      client.id
-    );
 
-  const type =
-    String(
-      client.tipo_cliente ||
-      ""
-    )
-      .toLowerCase() ===
-    "juridico"
-      ? "Jurídico"
-      : "Físico";
+function renderClientCard(client) {
+
+  const stats = getClientStats(client.id);
+
+  const isPJ =
+    String(client.tipo_cliente || "")
+      .toLowerCase()
+      .includes("jurid");
+
+  const type = isPJ ? "Jurídico" : "Físico";
 
   const statusClass =
-    client.ativo === true
-      ? ""
-      : "inactive";
+    client.ativo === true ? "" : "inactive";
 
   const statusText =
-    client.ativo === true
-      ? "Ativo"
-      : "Inativo";
+    client.ativo === true ? "Ativo" : "Inativo";
 
   const lastPurchase =
     stats.lastOrder
-      ? formatDate(
-          stats.lastOrder.data_pedido
-        )
+      ? formatDate(stats.lastOrder.data_pedido)
       : "Nenhuma compra";
 
   return `
@@ -479,29 +430,26 @@ function renderClientCard(client) {
         <div>
 
           <div class="client-name">
-            ${escapeHtml(
-              client.nome ||
-              "Cliente sem nome"
-            )}
+            ${escapeHtml(client.nome || "Cliente sem nome")}
           </div>
 
           <div class="client-type">
             ${type}
             ${
               client.cpf_cnpj
-                ? " • " +
-                  escapeHtml(
-                    client.cpf_cnpj
-                  )
+                ? " • " + escapeHtml(client.cpf_cnpj)
+                : ""
+            }
+            ${
+              isPJ && client.inscricao_estadual
+                ? " • IE: " + escapeHtml(client.inscricao_estadual)
                 : ""
             }
           </div>
 
         </div>
 
-        <span
-          class="client-status ${statusClass}"
-        >
+        <span class="client-status ${statusClass}">
           ${statusText}
         </span>
 
@@ -510,41 +458,30 @@ function renderClientCard(client) {
       <div class="client-info-grid">
 
         <div>
-
           <div class="client-info-label">
             Total comprado
           </div>
-
           <div class="client-info-value">
-            ${money(
-              stats.total
-            )}
+            ${money(stats.total)}
           </div>
-
         </div>
 
         <div>
-
           <div class="client-info-label">
             Última compra
           </div>
-
           <div class="client-info-value">
             ${lastPurchase}
           </div>
-
         </div>
 
         <div>
-
           <div class="client-info-label">
             Pedidos
           </div>
-
           <div class="client-info-value">
             ${stats.quantity}
           </div>
-
         </div>
 
       </div>
@@ -569,97 +506,154 @@ function renderClientCard(client) {
 
     </div>
   `;
+
 }
+
+
+/* ======================================================
+   DATAS / HELPERS FISCAIS
+   ====================================================== */
 
 function formatDate(value) {
+
   if (!value) {
     return "-";
   }
 
-  const date =
-    new Date(value);
+  const date = new Date(value);
 
-  if (
-    isNaN(
-      date.getTime()
-    )
-  ) {
+  if (isNaN(date.getTime())) {
     return String(value);
   }
 
-  return date.toLocaleDateString(
-    "pt-BR"
-  );
+  return date.toLocaleDateString("pt-BR");
+
 }
+
 
 function formatDateTime(value) {
+
   if (!value) {
     return "-";
   }
 
-  const date =
-    new Date(value);
+  const date = new Date(value);
 
-  if (
-    isNaN(
-      date.getTime()
-    )
-  ) {
+  if (isNaN(date.getTime())) {
     return String(value);
   }
 
-  return date.toLocaleString(
-    "pt-BR"
-  );
+  return date.toLocaleString("pt-BR");
+
 }
 
+
+function getIndicadorIeLabel(value) {
+
+  const labels = {
+    "1": "1 - Contribuinte ICMS",
+    "2": "2 - Contribuinte isento",
+    "9": "9 - Não contribuinte"
+  };
+
+  return labels[String(value)] || "9 - Não contribuinte";
+
+}
+
+
+function isPessoaJuridica(tipo) {
+
+  const t = String(tipo || "").toLowerCase();
+
+  return (
+    t.includes("jurid") ||
+    t.includes("jurídica") ||
+    t.includes("juridica")
+  );
+
+}
+
+
+/* ======================================================
+   ABERTURA DO MODAL
+   ====================================================== */
+
 function openNewClient() {
+
   editingClientId = null;
 
   openModal(
     "Novo cliente",
     clientForm()
   );
+
+  toggleClientTypeFields();
+
 }
 
+
+function editClient(clientId) {
+
+  const client =
+    clients.find(item =>
+      Number(item.id) === Number(clientId)
+    );
+
+  if (!client) {
+    return;
+  }
+
+  editingClientId = client.id;
+
+  openModal(
+    "Editar cliente",
+    clientForm(client)
+  );
+
+  toggleClientTypeFields();
+
+}
+
+
+/* ======================================================
+   FORMULÁRIO
+   ====================================================== */
+
 function clientForm(client = {}) {
+
+  const isPJ = isPessoaJuridica(
+    client.tipo_cliente
+  );
+
   return `
     <div class="form-grid">
+
+      <!-- ============ IDENTIFICAÇÃO ============ -->
+
+      <div class="form-section-title">
+        Identificação
+      </div>
 
       <div class="form-group">
 
         <label>
-          Tipo de cliente
+          Tipo de cliente *
         </label>
 
-        <select id="clientType">
+        <select
+          id="clientType"
+          onchange="toggleClientTypeFields()">
 
           <option
-            value="fisico"
-            ${
-              String(
-                client.tipo_cliente ||
-                ""
-              ).toLowerCase() ===
-              "fisico"
-                ? "selected"
-                : ""
-            }
+            value="Pessoa Física"
+            ${!isPJ ? "selected" : ""}
           >
             Pessoa Física
           </option>
 
           <option
-            value="juridico"
-            ${
-              String(
-                client.tipo_cliente ||
-                ""
-              ).toLowerCase() ===
-              "juridico"
-                ? "selected"
-                : ""
-            }
+            value="Pessoa Jurídica"
+            ${isPJ ? "selected" : ""}
           >
             Pessoa Jurídica
           </option>
@@ -671,16 +665,61 @@ function clientForm(client = {}) {
       <div class="form-group">
 
         <label>
-          Nome
+          Status
+        </label>
+
+        <select id="clientActive">
+
+          <option
+            value="true"
+            ${client.ativo !== false ? "selected" : ""}
+          >
+            Ativo
+          </option>
+
+          <option
+            value="false"
+            ${client.ativo === false ? "selected" : ""}
+          >
+            Inativo
+          </option>
+
+        </select>
+
+      </div>
+
+      <div class="form-group full">
+
+        <label>
+          Nome / Razão social *
         </label>
 
         <input
           type="text"
           id="clientName"
           value="${escapeHtml(
-            client.nome || ""
+            client.nome ||
+            client.razao_social ||
+            ""
           )}"
-          placeholder="Nome do cliente"
+          placeholder="Nome completo ou razão social"
+        >
+
+      </div>
+
+      <!-- Nome fantasia (PJ) -->
+      <div
+        class="form-group full pj-field ${isPJ ? "" : "hidden-field"}">
+
+        <label>
+          Nome fantasia
+        </label>
+
+        <input
+          type="text"
+          id="clientNomeFantasia"
+          value="${escapeHtml(client.nome_fantasia || "")}"
+          placeholder="Nome fantasia da empresa"
         >
 
       </div>
@@ -694,13 +733,85 @@ function clientForm(client = {}) {
         <input
           type="text"
           id="clientCpfCnpj"
-          value="${escapeHtml(
-            client.cpf_cnpj ||
-            ""
-          )}"
-          placeholder="CPF ou CNPJ"
+          value="${escapeHtml(client.cpf_cnpj || "")}"
+          placeholder="Somente números"
         >
 
+      </div>
+
+      <!-- Inscrição Estadual (PJ) -->
+      <div
+        class="form-group pj-field ${isPJ ? "" : "hidden-field"}">
+
+        <label>
+          Inscrição Estadual
+        </label>
+
+        <input
+          type="text"
+          id="clientInscricaoEstadual"
+          value="${escapeHtml(client.inscricao_estadual || "")}"
+          placeholder="IE ou ISENTO"
+        >
+
+        <small class="form-hint">
+          Use ISENTO se não contribuinte
+        </small>
+
+      </div>
+
+      <!-- Indicador de IE (PJ) -->
+      <div
+        class="form-group pj-field ${isPJ ? "" : "hidden-field"}">
+
+        <label>
+          Indicador de IE
+        </label>
+
+        <select id="clientIndicadorIe">
+
+          <option value="1"
+            ${client.indicador_ie === "1" ? "selected" : ""}>
+            1 - Contribuinte ICMS
+          </option>
+
+          <option value="2"
+            ${client.indicador_ie === "2" ? "selected" : ""}>
+            2 - Contribuinte isento
+          </option>
+
+          <option value="9"
+            ${!client.indicador_ie || client.indicador_ie === "9"
+              ? "selected"
+              : ""}>
+            9 - Não contribuinte
+          </option>
+
+        </select>
+
+      </div>
+
+      <!-- Inscrição Municipal (PJ) -->
+      <div
+        class="form-group pj-field ${isPJ ? "" : "hidden-field"}">
+
+        <label>
+          Inscrição Municipal
+        </label>
+
+        <input
+          type="text"
+          id="clientInscricaoMunicipal"
+          value="${escapeHtml(client.inscricao_municipal || "")}"
+          placeholder="Opcional"
+        >
+
+      </div>
+
+      <!-- ============ CONTATO ============ -->
+
+      <div class="form-section-title">
+        Contato
       </div>
 
       <div class="form-group">
@@ -712,10 +823,7 @@ function clientForm(client = {}) {
         <input
           type="email"
           id="clientEmail"
-          value="${escapeHtml(
-            client.email ||
-            ""
-          )}"
+          value="${escapeHtml(client.email || "")}"
           placeholder="cliente@email.com"
         >
 
@@ -730,10 +838,7 @@ function clientForm(client = {}) {
         <input
           type="text"
           id="clientPhone"
-          value="${escapeHtml(
-            client.telefone ||
-            ""
-          )}"
+          value="${escapeHtml(client.telefone || "")}"
           placeholder="Telefone"
         >
 
@@ -748,13 +853,16 @@ function clientForm(client = {}) {
         <input
           type="text"
           id="clientWhatsapp"
-          value="${escapeHtml(
-            client.whatsapp ||
-            ""
-          )}"
+          value="${escapeHtml(client.whatsapp || "")}"
           placeholder="WhatsApp"
         >
 
+      </div>
+
+      <!-- ============ ENDEREÇO ============ -->
+
+      <div class="form-section-title">
+        Endereço
       </div>
 
       <div class="form-group">
@@ -766,11 +874,8 @@ function clientForm(client = {}) {
         <input
           type="text"
           id="clientCep"
-          value="${escapeHtml(
-            client.cep ||
-            ""
-          )}"
-          placeholder="CEP"
+          value="${escapeHtml(client.cep || "")}"
+          placeholder="00000-000"
         >
 
       </div>
@@ -784,11 +889,8 @@ function clientForm(client = {}) {
         <input
           type="text"
           id="clientAddress"
-          value="${escapeHtml(
-            client.endereco ||
-            ""
-          )}"
-          placeholder="Endereço"
+          value="${escapeHtml(client.endereco || "")}"
+          placeholder="Rua, avenida..."
         >
 
       </div>
@@ -802,10 +904,7 @@ function clientForm(client = {}) {
         <input
           type="text"
           id="clientNumber"
-          value="${escapeHtml(
-            client.numero ||
-            ""
-          )}"
+          value="${escapeHtml(client.numero || "")}"
           placeholder="Número"
         >
 
@@ -820,10 +919,7 @@ function clientForm(client = {}) {
         <input
           type="text"
           id="clientComplement"
-          value="${escapeHtml(
-            client.complemento ||
-            ""
-          )}"
+          value="${escapeHtml(client.complemento || "")}"
           placeholder="Complemento"
         >
 
@@ -838,10 +934,7 @@ function clientForm(client = {}) {
         <input
           type="text"
           id="clientNeighborhood"
-          value="${escapeHtml(
-            client.bairro ||
-            ""
-          )}"
+          value="${escapeHtml(client.bairro || "")}"
           placeholder="Bairro"
         >
 
@@ -856,10 +949,7 @@ function clientForm(client = {}) {
         <input
           type="text"
           id="clientCity"
-          value="${escapeHtml(
-            client.cidade ||
-            ""
-          )}"
+          value="${escapeHtml(client.cidade || "")}"
           placeholder="Cidade"
         >
 
@@ -868,69 +958,32 @@ function clientForm(client = {}) {
       <div class="form-group">
 
         <label>
-          Estado
+          Estado (UF)
         </label>
 
         <input
           type="text"
           id="clientState"
           maxlength="2"
-          value="${escapeHtml(
-            client.estado ||
-            ""
-          )}"
+          value="${escapeHtml(client.estado || "")}"
           placeholder="MG"
+          style="text-transform:uppercase;"
         >
 
       </div>
 
-      <div class="form-group">
+      <!-- ============ OBSERVAÇÕES ============ -->
 
-        <label>
-          Status
-        </label>
-
-        <select id="clientActive">
-
-          <option
-            value="true"
-            ${
-              client.ativo !== false
-                ? "selected"
-                : ""
-            }
-          >
-            Ativo
-          </option>
-
-          <option
-            value="false"
-            ${
-              client.ativo === false
-                ? "selected"
-                : ""
-            }
-          >
-            Inativo
-          </option>
-
-        </select>
-
+      <div class="form-section-title">
+        Observações
       </div>
 
       <div class="form-group full">
 
-        <label>
-          Observações
-        </label>
-
         <textarea
           id="clientNotes"
-          placeholder="Observações"
-        >${escapeHtml(
-          client.observacoes ||
-          ""
-        )}</textarea>
+          placeholder="Observações internas"
+        >${escapeHtml(client.observacoes || "")}</textarea>
 
       </div>
 
@@ -954,137 +1007,213 @@ function clientForm(client = {}) {
 
     </div>
   `;
+
 }
 
+
+function toggleClientTypeFields() {
+
+  const type = $("clientType")?.value || "";
+
+  const isPJ = isPessoaJuridica(type);
+
+  document
+    .querySelectorAll(".pj-field")
+    .forEach(field => {
+
+      if (isPJ) {
+        field.classList.remove("hidden-field");
+      } else {
+        field.classList.add("hidden-field");
+      }
+
+    });
+
+}
+
+
+/* ======================================================
+   SALVAR
+   ====================================================== */
+
 async function saveClient() {
+
   const name =
-    $("clientName")
-      ?.value
-      .trim();
+    $("clientName")?.value.trim();
 
   if (!name) {
-    alert(
-      "Informe o nome do cliente."
-    );
 
+    alert("Informe o nome do cliente.");
     return;
+
   }
 
-  if (
-    !currentStore ||
-    !currentStore.id_loja
-  ) {
-    alert(
-      "Loja não identificada."
-    );
+  if (!currentStore || !currentStore.id_loja) {
 
+    alert("Loja não identificada.");
     return;
+
   }
+
+  const tipoCliente =
+    $("clientType").value;
+
+  const isPJ =
+    isPessoaJuridica(tipoCliente);
+
+
+  /* ---------- Validações fiscais ---------- */
+
+  const cpfCnpj =
+    ($("clientCpfCnpj")?.value || "")
+      .replace(/\D/g, "");
+
+  if (isPJ) {
+
+    if (cpfCnpj && cpfCnpj.length !== 14) {
+
+      alert(
+        "O CNPJ deve ter 14 dígitos.\n\n" +
+        "Valor informado: " + cpfCnpj
+      );
+
+      return;
+
+    }
+
+    const ie =
+      ($("clientInscricaoEstadual")?.value || "")
+        .trim()
+        .toUpperCase();
+
+    if (!ie) {
+
+      const continuar = confirm(
+        "A Inscrição Estadual não foi informada.\n\n" +
+        "Sem ela, o cliente será tratado como " +
+        "não contribuinte (indicador 9).\n\n" +
+        "Deseja continuar?"
+      );
+
+      if (!continuar) {
+        return;
+      }
+
+    }
+
+  } else {
+
+    if (cpfCnpj && cpfCnpj.length !== 11) {
+
+      alert(
+        "O CPF deve ter 11 dígitos.\n\n" +
+        "Valor informado: " + cpfCnpj
+      );
+
+      return;
+
+    }
+
+  }
+
+
+  /* ---------- Monta payload ---------- */
 
   const data = {
-    id_loja:
-      currentStore.id_loja,
 
-    tipo_cliente:
-      $("clientType").value,
+    id_loja: currentStore.id_loja,
 
-    nome:
-      name,
+    tipo_cliente: tipoCliente,
+
+    nome: name,
+
+    razao_social:
+      isPJ ? name : null,
+
+    nome_fantasia:
+      isPJ
+        ? ($("clientNomeFantasia")?.value.trim() || null)
+        : null,
 
     cpf_cnpj:
-      $("clientCpfCnpj")
-        .value
-        .trim() || null,
+      cpfCnpj || null,
+
+    inscricao_estadual:
+      isPJ
+        ? ($("clientInscricaoEstadual")?.value.trim() || null)
+        : null,
+
+    indicador_ie:
+      isPJ
+        ? ($("clientIndicadorIe")?.value || "9")
+        : "9",
+
+    inscricao_municipal:
+      isPJ
+        ? ($("clientInscricaoMunicipal")?.value.trim() || null)
+        : null,
 
     email:
-      $("clientEmail")
-        .value
-        .trim() || null,
+      $("clientEmail").value.trim() || null,
 
     telefone:
-      $("clientPhone")
-        .value
-        .trim() || null,
+      $("clientPhone").value.trim() || null,
 
     whatsapp:
-      $("clientWhatsapp")
-        .value
-        .trim() || null,
+      $("clientWhatsapp").value.trim() || null,
 
     cep:
-      $("clientCep")
-        .value
-        .trim() || null,
+      $("clientCep").value.trim() || null,
 
     endereco:
-      $("clientAddress")
-        .value
-        .trim() || null,
+      $("clientAddress").value.trim() || null,
 
     numero:
-      $("clientNumber")
-        .value
-        .trim() || null,
+      $("clientNumber").value.trim() || null,
 
     complemento:
-      $("clientComplement")
-        .value
-        .trim() || null,
+      $("clientComplement").value.trim() || null,
 
     bairro:
-      $("clientNeighborhood")
-        .value
-        .trim() || null,
+      $("clientNeighborhood").value.trim() || null,
 
     cidade:
-      $("clientCity")
-        .value
-        .trim() || null,
+      $("clientCity").value.trim() || null,
 
     estado:
-      $("clientState")
-        .value
-        .trim()
-        .toUpperCase() || null,
+      $("clientState").value.trim().toUpperCase() || null,
 
     observacoes:
-      $("clientNotes")
-        .value
-        .trim() || null,
+      $("clientNotes").value.trim() || null,
 
     ativo:
-      $("clientActive")
-        .value === "true"
+      $("clientActive").value === "true"
+
   };
 
+
   try {
+
     let result;
 
     if (editingClientId) {
-      result =
-        await db
-          .from(
-            "gestao_loja_clientes"
-          )
-          .update(data)
-          .eq(
-            "id",
-            editingClientId
-          )
-          .eq(
-            "id_loja",
-            currentStore.id_loja
-          );
+
+      result = await db
+        .from("gestao_loja_clientes")
+        .update(data)
+        .eq("id", editingClientId)
+        .eq("id_loja", currentStore.id_loja);
+
     } else {
-      result =
-        await db
-          .from(
-            "gestao_loja_clientes"
-          )
-          .insert(data);
+
+      result = await db
+        .from("gestao_loja_clientes")
+        .insert(data);
+
     }
 
     if (result.error) {
+
       console.error(
         "Erro ao salvar cliente:",
         result.error
@@ -1096,6 +1225,7 @@ async function saveClient() {
       );
 
       return;
+
     }
 
     closeModal();
@@ -1103,71 +1233,45 @@ async function saveClient() {
     await loadClientsPage();
 
   } catch (error) {
+
     console.error(
       "Erro ao salvar cliente:",
       error
     );
 
-    alert(
-      "Erro ao salvar cliente."
-    );
-  }
-}
+    alert("Erro ao salvar cliente.");
 
-function editClient(clientId) {
-  const client =
-    clients.find(
-      item =>
-        Number(item.id) ===
-        Number(clientId)
-    );
-
-  if (!client) {
-    return;
   }
 
-  editingClientId =
-    client.id;
-
-  openModal(
-    "Editar cliente",
-    clientForm(client)
-  );
 }
+
+
+/* ======================================================
+   DETALHES
+   ====================================================== */
 
 function viewClient(clientId) {
+
   const client =
-    clients.find(
-      item =>
-        Number(item.id) ===
-        Number(clientId)
+    clients.find(item =>
+      Number(item.id) === Number(clientId)
     );
 
   if (!client) {
     return;
   }
 
-  const stats =
-    getClientStats(
-      client.id
-    );
+  const stats = getClientStats(client.id);
+
+  const isPJ =
+    isPessoaJuridica(client.tipo_cliente);
 
   const type =
-    String(
-      client.tipo_cliente ||
-      ""
-    )
-      .toLowerCase() ===
-    "juridico"
-      ? "Pessoa Jurídica"
-      : "Pessoa Física";
+    isPJ ? "Pessoa Jurídica" : "Pessoa Física";
 
   const lastPurchase =
     stats.lastOrder
-      ? formatDate(
-          stats.lastOrder
-            .data_pedido
-        )
+      ? formatDate(stats.lastOrder.data_pedido)
       : "Nenhuma compra";
 
   const addressParts = [
@@ -1187,73 +1291,47 @@ function viewClient(clientId) {
   const history =
     stats.orders.length
       ? stats.orders
-          .map(
-            order => `
-              <div class="purchase-row">
+          .map(order => `
+            <div class="purchase-row">
 
-                <div>
-
-                  <div class="purchase-label">
-                    Pedido
-                  </div>
-
-                  <div class="purchase-value">
-                    #${escapeHtml(
-                      String(
-                        order.numero ||
-                        order.id
-                      )
-                    )}
-                  </div>
-
+              <div>
+                <div class="purchase-label">
+                  Pedido
                 </div>
-
-                <div>
-
-                  <div class="purchase-label">
-                    Data
-                  </div>
-
-                  <div class="purchase-value">
-                    ${formatDate(
-                      order.data_pedido
-                    )}
-                  </div>
-
+                <div class="purchase-value">
+                  #${escapeHtml(String(order.numero || order.id))}
                 </div>
-
-                <div>
-
-                  <div class="purchase-label">
-                    Valor
-                  </div>
-
-                  <div class="purchase-value">
-                    ${money(
-                      order.valor_total
-                    )}
-                  </div>
-
-                </div>
-
-                <div>
-
-                  <div class="purchase-label">
-                    Status
-                  </div>
-
-                  <div class="purchase-value">
-                    ${escapeHtml(
-                      order.status ||
-                      "-"
-                    )}
-                  </div>
-
-                </div>
-
               </div>
-            `
-          )
+
+              <div>
+                <div class="purchase-label">
+                  Data
+                </div>
+                <div class="purchase-value">
+                  ${formatDate(order.data_pedido)}
+                </div>
+              </div>
+
+              <div>
+                <div class="purchase-label">
+                  Valor
+                </div>
+                <div class="purchase-value">
+                  ${money(order.valor_total)}
+                </div>
+              </div>
+
+              <div>
+                <div class="purchase-label">
+                  Status
+                </div>
+                <div class="purchase-value">
+                  ${escapeHtml(order.status || "-")}
+                </div>
+              </div>
+
+            </div>
+          `)
           .join("")
       : `
         <div
@@ -1263,8 +1341,7 @@ function viewClient(clientId) {
             padding:10px 0;
           "
         >
-          Este cliente ainda não possui
-          compras confirmadas.
+          Este cliente ainda não possui compras confirmadas.
         </div>
       `;
 
@@ -1275,80 +1352,91 @@ function viewClient(clientId) {
 
         <div class="detail-box">
           <small>Cliente</small>
-          <strong>
-            ${escapeHtml(
-              client.nome ||
-              "-"
-            )}
-          </strong>
+          <strong>${escapeHtml(client.nome || "-")}</strong>
         </div>
 
         <div class="detail-box">
           <small>Tipo</small>
-          <strong>
-            ${type}
-          </strong>
+          <strong>${type}</strong>
         </div>
+
+        ${
+          isPJ && client.nome_fantasia
+            ? `
+              <div class="detail-box">
+                <small>Nome fantasia</small>
+                <strong>${escapeHtml(client.nome_fantasia)}</strong>
+              </div>
+            `
+            : ""
+        }
 
         <div class="detail-box">
           <small>CPF / CNPJ</small>
-          <strong>
-            ${escapeHtml(
-              client.cpf_cnpj ||
-              "Não informado"
-            )}
-          </strong>
+          <strong>${escapeHtml(
+            client.cpf_cnpj || "Não informado"
+          )}</strong>
         </div>
 
         <div class="detail-box">
           <small>Telefone</small>
-          <strong>
-            ${escapeHtml(
-              client.telefone ||
-              "Não informado"
-            )}
-          </strong>
+          <strong>${escapeHtml(
+            client.telefone || "Não informado"
+          )}</strong>
         </div>
 
         <div class="detail-box">
           <small>Total comprado</small>
-          <strong>
-            ${money(
-              stats.total
-            )}
-          </strong>
+          <strong>${money(stats.total)}</strong>
         </div>
 
         <div class="detail-box">
           <small>Última compra</small>
-          <strong>
-            ${lastPurchase}
-          </strong>
+          <strong>${lastPurchase}</strong>
         </div>
 
         <div class="detail-box">
           <small>Total de pedidos</small>
-          <strong>
-            ${stats.quantity}
-          </strong>
+          <strong>${stats.quantity}</strong>
         </div>
 
         <div class="detail-box">
           <small>Endereço</small>
-          <strong>
-            ${escapeHtml(
-              address
-            )}
-          </strong>
+          <strong>${escapeHtml(address)}</strong>
         </div>
+
+        ${
+          isPJ
+            ? `
+              <div class="detail-box">
+                <small>Inscrição Estadual</small>
+                <strong>${escapeHtml(
+                  client.inscricao_estadual || "Não informada"
+                )}</strong>
+              </div>
+
+              <div class="detail-box">
+                <small>Indicador de IE</small>
+                <strong>${escapeHtml(
+                  getIndicadorIeLabel(client.indicador_ie)
+                )}</strong>
+              </div>
+
+              <div class="detail-box">
+                <small>Inscrição Municipal</small>
+                <strong>${escapeHtml(
+                  client.inscricao_municipal || "Não informada"
+                )}</strong>
+              </div>
+            `
+            : ""
+        }
 
       </div>
 
       <div class="client-history">
 
-        <h3>
-          Histórico de compras
-        </h3>
+        <h3>Histórico de compras</h3>
 
         ${history}
 
@@ -1373,4 +1461,5 @@ function viewClient(clientId) {
       </div>
     `
   );
+
 }

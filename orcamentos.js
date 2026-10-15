@@ -5,18 +5,28 @@ let quotes = [];
 let currentQuoteItems = [];
 let editingQuoteId = null;
 
+
+/* ======================================================
+   HELPERS
+   ====================================================== */
+
 function quoteMoney(value) {
+
   return Number(value || 0).toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL"
   });
+
 }
 
 function quoteNumber(value) {
+
   return Number(value || 0);
+
 }
 
 function getQuoteNumberValue(id) {
+
   const element = document.getElementById(id);
 
   if (!element) {
@@ -26,9 +36,11 @@ function getQuoteNumberValue(id) {
   return Number(
     String(element.value || "").replace(",", ".")
   ) || 0;
+
 }
 
 function getQuoteToday() {
+
   const date = new Date();
 
   const year = date.getFullYear();
@@ -42,9 +54,11 @@ function getQuoteToday() {
   ).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+
 }
 
 function formatQuoteDate(value) {
+
   if (!value) {
     return "-";
   }
@@ -56,15 +70,19 @@ function formatQuoteDate(value) {
   }
 
   return date.toLocaleDateString("pt-BR");
+
 }
 
 function isQuoteStatus(status) {
+
   return String(status || "")
     .trim()
     .toLowerCase() === "orçamento";
+
 }
 
 function quoteStatusClass(status) {
+
   const normalized = String(status || "")
     .trim()
     .toLowerCase();
@@ -86,13 +104,41 @@ function quoteStatusClass(status) {
   }
 
   return "";
+
 }
 
+function isPessoaJuridica(tipo) {
+
+  const t = String(tipo || "").toLowerCase();
+
+  return (
+    t.includes("jurid") ||
+    t.includes("jurídica") ||
+    t.includes("juridica")
+  );
+
+}
+
+function getIndicadorIeLabel(value) {
+
+  const labels = {
+    "1": "1 - Contribuinte ICMS",
+    "2": "2 - Contribuinte isento",
+    "9": "9 - Não contribuinte"
+  };
+
+  return labels[String(value)] || "9 - Não contribuinte";
+
+}
+
+
+/* ======================================================
+   CARREGAMENTOS
+   ====================================================== */
+
 async function loadQuoteClients() {
-  const {
-    data,
-    error
-  } = await db
+
+  const { data, error } = await db
     .from("gestao_loja_clientes")
     .select("*")
     .eq("id_loja", currentStore.id_loja)
@@ -104,13 +150,12 @@ async function loadQuoteClients() {
   }
 
   clients = data || [];
+
 }
 
 async function loadQuoteProducts() {
-  const {
-    data,
-    error
-  } = await db
+
+  const { data, error } = await db
     .from("gestao_loja_produtos")
     .select("*")
     .eq("id_loja", currentStore.id_loja)
@@ -122,13 +167,12 @@ async function loadQuoteProducts() {
   }
 
   products = data || [];
+
 }
 
 async function loadQuoteVariations() {
-  const {
-    data,
-    error
-  } = await db
+
+  const { data, error } = await db
     .from("gestao_loja_produtos_variacoes")
     .select("*")
     .eq("id_loja", currentStore.id_loja)
@@ -140,13 +184,12 @@ async function loadQuoteVariations() {
   }
 
   variations = data || [];
+
 }
 
 async function loadQuotes() {
-  const {
-    data,
-    error
-  } = await db
+
+  const { data, error } = await db
     .from("gestao_loja_pedidos")
     .select(`
       *,
@@ -156,14 +199,15 @@ async function loadQuotes() {
         telefone,
         whatsapp,
         email,
-        cpf_cnpj
+        cpf_cnpj,
+        tipo_cliente,
+        inscricao_estadual,
+        indicador_ie
       )
     `)
     .eq("id_loja", currentStore.id_loja)
     .eq("status", "Orçamento")
-    .order("id", {
-      ascending: false
-    });
+    .order("id", { ascending: false });
 
   if (error) {
     throw error;
@@ -172,19 +216,25 @@ async function loadQuotes() {
   quotes = data || [];
 
   renderQuotes();
+
 }
 
+
+/* ======================================================
+   LISTAGEM
+   ====================================================== */
+
 function renderQuotes() {
+
   const container =
-    document.getElementById(
-      "quotesContainer"
-    );
+    document.getElementById("quotesContainer");
 
   if (!container) {
     return;
   }
 
   if (!quotes.length) {
+
     container.innerHTML = `
       <div class="card">
 
@@ -201,6 +251,7 @@ function renderQuotes() {
     `;
 
     return;
+
   }
 
   container.innerHTML = `
@@ -305,11 +356,18 @@ function renderQuotes() {
 
     </div>
   `;
+
 }
+
+
+/* ======================================================
+   OPÇÕES
+   ====================================================== */
 
 function buildQuoteClientOptions(
   selectedId = ""
 ) {
+
   return `
     <option value="">
       Selecione o cliente
@@ -331,11 +389,13 @@ function buildQuoteClientOptions(
 
     `).join("")}
   `;
+
 }
 
 function buildQuoteProductOptions(
   selectedId = ""
 ) {
+
   return `
     <option value="">
       Selecione o produto
@@ -357,126 +417,379 @@ function buildQuoteProductOptions(
 
     `).join("")}
   `;
+
 }
 
-/* =========================================================
-   CADASTRO DE CLIENTE (mesmo modelo da página clientes.html)
-   Layout em 2 colunas via .form-grid
-   ========================================================= */
+
+/* ======================================================
+   CADASTRO DE CLIENTE (COM DADOS FISCAIS PJ)
+   ====================================================== */
+
 function openClientForm() {
+
   openModal(
     "Cadastrar cliente",
-    `
-      <div class="form-grid">
-
-        <div class="form-group">
-          <label>Tipo de cliente</label>
-          <select id="c_tipo_cliente">
-            <option value="fisico">Pessoa Física</option>
-            <option value="juridico">Pessoa Jurídica</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Nome *</label>
-          <input type="text" id="c_nome" placeholder="Nome do cliente">
-        </div>
-
-        <div class="form-group">
-          <label>CPF / CNPJ</label>
-          <input type="text" id="c_cpf_cnpj" placeholder="CPF ou CNPJ">
-        </div>
-
-        <div class="form-group">
-          <label>E-mail</label>
-          <input type="email" id="c_email" placeholder="cliente@email.com">
-        </div>
-
-        <div class="form-group">
-          <label>Telefone</label>
-          <input type="text" id="c_telefone" placeholder="Telefone">
-        </div>
-
-        <div class="form-group">
-          <label>WhatsApp</label>
-          <input type="text" id="c_whatsapp" placeholder="WhatsApp">
-        </div>
-
-        <div class="form-group">
-          <label>CEP</label>
-          <input type="text" id="c_cep" placeholder="CEP">
-        </div>
-
-        <div class="form-group">
-          <label>Endereço</label>
-          <input type="text" id="c_endereco" placeholder="Endereço">
-        </div>
-
-        <div class="form-group">
-          <label>Número</label>
-          <input type="text" id="c_numero" placeholder="Número">
-        </div>
-
-        <div class="form-group">
-          <label>Complemento</label>
-          <input type="text" id="c_complemento" placeholder="Complemento">
-        </div>
-
-        <div class="form-group">
-          <label>Bairro</label>
-          <input type="text" id="c_bairro" placeholder="Bairro">
-        </div>
-
-        <div class="form-group">
-          <label>Cidade</label>
-          <input type="text" id="c_cidade" placeholder="Cidade">
-        </div>
-
-        <div class="form-group">
-          <label>Estado</label>
-          <input type="text" id="c_estado" maxlength="2" placeholder="MG">
-        </div>
-
-        <div class="form-group">
-          <label>Status</label>
-          <select id="c_ativo">
-            <option value="true" selected>Ativo</option>
-            <option value="false">Inativo</option>
-          </select>
-        </div>
-
-        <div class="form-group full">
-          <label>Observações</label>
-          <textarea id="c_observacoes" placeholder="Observações"></textarea>
-        </div>
-
-      </div>
-
-      <div class="modal-actions">
-
-        <button
-          class="btn btn-secondary"
-          type="button"
-          onclick="closeModal()"
-        >
-          Cancelar
-        </button>
-
-        <button
-          class="btn btn-primary"
-          type="button"
-          onclick="saveClientFromQuote()"
-          id="saveClientFromQuoteButton"
-        >
-          Salvar cliente
-        </button>
-
-      </div>
-    `
+    clientFormFromQuote()
   );
+
+  toggleClientTypeFieldsQuote();
+
+}
+
+function clientFormFromQuote() {
+
+  return `
+    <div class="form-grid">
+
+      <!-- ============ IDENTIFICAÇÃO ============ -->
+
+      <div class="form-section-title">
+        Identificação
+      </div>
+
+      <div class="form-group">
+
+        <label>
+          Tipo de cliente *
+        </label>
+
+        <select
+          id="c_tipo_cliente"
+          onchange="toggleClientTypeFieldsQuote()"
+        >
+          <option value="Pessoa Física">Pessoa Física</option>
+          <option value="Pessoa Jurídica">Pessoa Jurídica</option>
+        </select>
+
+      </div>
+
+      <div class="form-group">
+
+        <label>
+          Status
+        </label>
+
+        <select id="c_ativo">
+          <option value="true" selected>Ativo</option>
+          <option value="false">Inativo</option>
+        </select>
+
+      </div>
+
+      <div class="form-group full">
+
+        <label>
+          Nome / Razão social *
+        </label>
+
+        <input
+          type="text"
+          id="c_nome"
+          placeholder="Nome completo ou razão social"
+        >
+
+      </div>
+
+      <div
+        class="form-group full pj-field hidden-field"
+      >
+        <label>
+          Nome fantasia
+        </label>
+
+        <input
+          type="text"
+          id="c_nome_fantasia"
+          placeholder="Nome fantasia da empresa"
+        >
+
+      </div>
+
+      <div class="form-group">
+
+        <label>
+          CPF / CNPJ
+        </label>
+
+        <input
+          type="text"
+          id="c_cpf_cnpj"
+          placeholder="Somente números"
+        >
+
+      </div>
+
+      <div
+        class="form-group pj-field hidden-field"
+      >
+        <label>
+          Inscrição Estadual
+        </label>
+
+        <input
+          type="text"
+          id="c_inscricao_estadual"
+          placeholder="IE ou ISENTO"
+        >
+
+        <small class="form-hint">
+          Use ISENTO se não contribuinte
+        </small>
+
+      </div>
+
+      <div
+        class="form-group pj-field hidden-field"
+      >
+        <label>
+          Indicador de IE
+        </label>
+
+        <select id="c_indicador_ie">
+          <option value="1">1 - Contribuinte ICMS</option>
+          <option value="2">2 - Contribuinte isento</option>
+          <option value="9" selected>9 - Não contribuinte</option>
+        </select>
+
+      </div>
+
+      <div
+        class="form-group pj-field hidden-field"
+      >
+        <label>
+          Inscrição Municipal
+        </label>
+
+        <input
+          type="text"
+          id="c_inscricao_municipal"
+          placeholder="Opcional"
+        >
+
+      </div>
+
+      <!-- ============ CONTATO ============ -->
+
+      <div class="form-section-title">
+        Contato
+      </div>
+
+      <div class="form-group">
+
+        <label>
+          E-mail
+        </label>
+
+        <input
+          type="email"
+          id="c_email"
+          placeholder="cliente@email.com"
+        >
+
+      </div>
+
+      <div class="form-group">
+
+        <label>
+          Telefone
+        </label>
+
+        <input
+          type="text"
+          id="c_telefone"
+          placeholder="Telefone"
+        >
+
+      </div>
+
+      <div class="form-group">
+
+        <label>
+          WhatsApp
+        </label>
+
+        <input
+          type="text"
+          id="c_whatsapp"
+          placeholder="WhatsApp"
+        >
+
+      </div>
+
+      <!-- ============ ENDEREÇO ============ -->
+
+      <div class="form-section-title">
+        Endereço
+      </div>
+
+      <div class="form-group">
+
+        <label>
+          CEP
+        </label>
+
+        <input
+          type="text"
+          id="c_cep"
+          placeholder="00000-000"
+        >
+
+      </div>
+
+      <div class="form-group">
+
+        <label>
+          Endereço
+        </label>
+
+        <input
+          type="text"
+          id="c_endereco"
+          placeholder="Rua, avenida..."
+        >
+
+      </div>
+
+      <div class="form-group">
+
+        <label>
+          Número
+        </label>
+
+        <input
+          type="text"
+          id="c_numero"
+          placeholder="Número"
+        >
+
+      </div>
+
+      <div class="form-group">
+
+        <label>
+          Complemento
+        </label>
+
+        <input
+          type="text"
+          id="c_complemento"
+          placeholder="Complemento"
+        >
+
+      </div>
+
+      <div class="form-group">
+
+        <label>
+          Bairro
+        </label>
+
+        <input
+          type="text"
+          id="c_bairro"
+          placeholder="Bairro"
+        >
+
+      </div>
+
+      <div class="form-group">
+
+        <label>
+          Cidade
+        </label>
+
+        <input
+          type="text"
+          id="c_cidade"
+          placeholder="Cidade"
+        >
+
+      </div>
+
+      <div class="form-group">
+
+        <label>
+          Estado (UF)
+        </label>
+
+        <input
+          type="text"
+          id="c_estado"
+          maxlength="2"
+          placeholder="MG"
+          style="text-transform:uppercase;"
+        >
+
+      </div>
+
+      <!-- ============ OBS ============ -->
+
+      <div class="form-section-title">
+        Observações
+      </div>
+
+      <div class="form-group full">
+
+        <label>
+          Observações
+        </label>
+
+        <textarea
+          id="c_observacoes"
+          placeholder="Observações internas"
+        ></textarea>
+
+      </div>
+
+    </div>
+
+    <div class="modal-actions">
+
+      <button
+        class="btn btn-secondary"
+        type="button"
+        onclick="closeModal()"
+      >
+        Cancelar
+      </button>
+
+      <button
+        class="btn btn-primary"
+        type="button"
+        onclick="saveClientFromQuote()"
+        id="saveClientFromQuoteButton"
+      >
+        Salvar cliente
+      </button>
+
+    </div>
+  `;
+
+}
+
+function toggleClientTypeFieldsQuote() {
+
+  const type =
+    document.getElementById("c_tipo_cliente")?.value || "";
+
+  const isPJ = isPessoaJuridica(type);
+
+  document
+    .querySelectorAll(".pj-field")
+    .forEach(field => {
+
+      if (isPJ) {
+        field.classList.remove("hidden-field");
+      } else {
+        field.classList.add("hidden-field");
+      }
+
+    });
+
 }
 
 async function saveClientFromQuote() {
+
   const name =
     document.getElementById("c_nome")
       .value
@@ -492,66 +805,134 @@ async function saveClientFromQuote() {
     return;
   }
 
+  const tipoCliente =
+    document.getElementById("c_tipo_cliente").value;
+
+  const isPJ =
+    isPessoaJuridica(tipoCliente);
+
+  const cpfCnpj =
+    (document.getElementById("c_cpf_cnpj").value || "")
+      .replace(/\D/g, "");
+
+  /* ---------- Validações ---------- */
+
+  if (isPJ) {
+
+    if (cpfCnpj && cpfCnpj.length !== 14) {
+
+      alert(
+        "O CNPJ deve ter 14 dígitos.\n\n" +
+        "Valor informado: " + cpfCnpj
+      );
+
+      return;
+
+    }
+
+    const ie =
+      (document.getElementById("c_inscricao_estadual")?.value || "")
+        .trim()
+        .toUpperCase();
+
+    if (!ie) {
+
+      const continuar = confirm(
+        "A Inscrição Estadual não foi informada.\n\n" +
+        "Sem ela, o cliente será tratado como " +
+        "não contribuinte (indicador 9).\n\n" +
+        "Deseja continuar?"
+      );
+
+      if (!continuar) {
+        return;
+      }
+
+    }
+
+  } else {
+
+    if (cpfCnpj && cpfCnpj.length !== 11) {
+
+      alert(
+        "O CPF deve ter 11 dígitos.\n\n" +
+        "Valor informado: " + cpfCnpj
+      );
+
+      return;
+
+    }
+
+  }
+
   const payload = {
-    id_loja:
-      currentStore.id_loja,
 
-    tipo_cliente:
-      document.getElementById("c_tipo_cliente").value,
+    id_loja: currentStore.id_loja,
 
-    nome:
-      name,
+    tipo_cliente: tipoCliente,
 
-    cpf_cnpj:
-      document.getElementById("c_cpf_cnpj")
-        .value.trim() || null,
+    nome: name,
+
+    razao_social: isPJ ? name : null,
+
+    nome_fantasia:
+      isPJ
+        ? (document.getElementById("c_nome_fantasia")?.value.trim() || null)
+        : null,
+
+    cpf_cnpj: cpfCnpj || null,
+
+    inscricao_estadual:
+      isPJ
+        ? (document.getElementById("c_inscricao_estadual")?.value.trim() || null)
+        : null,
+
+    indicador_ie:
+      isPJ
+        ? (document.getElementById("c_indicador_ie")?.value || "9")
+        : "9",
+
+    inscricao_municipal:
+      isPJ
+        ? (document.getElementById("c_inscricao_municipal")?.value.trim() || null)
+        : null,
 
     email:
-      document.getElementById("c_email")
-        .value.trim() || null,
+      document.getElementById("c_email").value.trim() || null,
 
     telefone:
-      document.getElementById("c_telefone")
-        .value.trim() || null,
+      document.getElementById("c_telefone").value.trim() || null,
 
     whatsapp:
-      document.getElementById("c_whatsapp")
-        .value.trim() || null,
+      document.getElementById("c_whatsapp").value.trim() || null,
 
     cep:
-      document.getElementById("c_cep")
-        .value.trim() || null,
+      document.getElementById("c_cep").value.trim() || null,
 
     endereco:
-      document.getElementById("c_endereco")
-        .value.trim() || null,
+      document.getElementById("c_endereco").value.trim() || null,
 
     numero:
-      document.getElementById("c_numero")
-        .value.trim() || null,
+      document.getElementById("c_numero").value.trim() || null,
 
     complemento:
-      document.getElementById("c_complemento")
-        .value.trim() || null,
+      document.getElementById("c_complemento").value.trim() || null,
 
     bairro:
-      document.getElementById("c_bairro")
-        .value.trim() || null,
+      document.getElementById("c_bairro").value.trim() || null,
 
     cidade:
-      document.getElementById("c_cidade")
-        .value.trim() || null,
+      document.getElementById("c_cidade").value.trim() || null,
 
     estado:
-      document.getElementById("c_estado")
-        .value.trim().toUpperCase() || null,
+      document.getElementById("c_estado").value.trim().toUpperCase() || null,
 
     observacoes:
-      document.getElementById("c_observacoes")
-        .value.trim() || null,
+      document.getElementById("c_observacoes").value.trim() || null,
 
     ativo:
       document.getElementById("c_ativo").value === "true"
+
   };
 
   const button =
@@ -563,26 +944,30 @@ async function saveClientFromQuote() {
   }
 
   try {
-    const result =
-      await db
-        .from("gestao_loja_clientes")
-        .insert(payload)
-        .select(`
-          id,
-          nome,
-          telefone,
-          whatsapp,
-          email,
-          cpf_cnpj,
-          cep,
-          endereco,
-          numero,
-          complemento,
-          bairro,
-          cidade,
-          estado
-        `)
-        .single();
+
+    const result = await db
+      .from("gestao_loja_clientes")
+      .insert(payload)
+      .select(`
+        id,
+        nome,
+        telefone,
+        whatsapp,
+        email,
+        cpf_cnpj,
+        tipo_cliente,
+        inscricao_estadual,
+        indicador_ie,
+        inscricao_municipal,
+        cep,
+        endereco,
+        numero,
+        complemento,
+        bairro,
+        cidade,
+        estado
+      `)
+      .single();
 
     if (result.error) {
       throw result.error;
@@ -590,7 +975,6 @@ async function saveClientFromQuote() {
 
     const newClient = result.data;
 
-    // Atualiza a lista local
     clients.push(newClient);
 
     clients.sort(function(a, b) {
@@ -606,28 +990,33 @@ async function saveClientFromQuote() {
       document.getElementById("quoteClient");
 
     if (quoteSelect) {
+
       quoteSelect.innerHTML =
         buildQuoteClientOptions(newClient.id);
 
-      // Preenche o endereço automaticamente
       changeQuoteClient(newClient.id);
 
     } else {
+
       openNewQuote();
 
       setTimeout(function() {
+
         const sel = document.getElementById("quoteClient");
 
         if (sel) {
           sel.value = String(newClient.id);
           changeQuoteClient(newClient.id);
         }
+
       }, 100);
+
     }
 
     alert("Cliente cadastrado com sucesso.");
 
   } catch (error) {
+
     console.error("Erro ao cadastrar cliente:", error);
 
     alert(
@@ -636,14 +1025,23 @@ async function saveClientFromQuote() {
     );
 
   } finally {
+
     if (button) {
       button.disabled = false;
       button.textContent = "Salvar cliente";
     }
+
   }
+
 }
 
+
+/* ======================================================
+   FORMULÁRIO DE ORÇAMENTO
+   ====================================================== */
+
 function buildQuoteForm() {
+
   return `
 
     <div
@@ -1152,14 +1550,15 @@ function buildQuoteForm() {
 
     </div>
   `;
+
 }
 
 function openNewQuote() {
+
   editingQuoteId = null;
   currentQuoteItems = [];
 
-  const modal =
-    document.getElementById("modal");
+  const modal = document.getElementById("modal");
 
   modal.classList.remove("hidden");
 
@@ -1181,9 +1580,11 @@ function openNewQuote() {
 
   renderQuoteItems();
   updateQuoteSummary();
+
 }
 
 function changeQuoteClient(clientId) {
+
   const client =
     clients.find(
       item =>
@@ -1205,8 +1606,7 @@ function changeQuoteClient(clientId) {
 
     ids.forEach(id => {
 
-      const element =
-        document.getElementById(id);
+      const element = document.getElementById(id);
 
       if (element) {
         element.value = "";
@@ -1215,45 +1615,39 @@ function changeQuoteClient(clientId) {
     });
 
     return;
+
   }
 
-  document.getElementById(
-    "quoteCep"
-  ).value =
+  document.getElementById("quoteCep").value =
     client.cep || "";
 
-  document.getElementById(
-    "quoteAddress"
-  ).value =
+  document.getElementById("quoteAddress").value =
     client.endereco || "";
 
-  document.getElementById(
-    "quoteNumber"
-  ).value =
+  document.getElementById("quoteNumber").value =
     client.numero || "";
 
-  document.getElementById(
-    "quoteComplement"
-  ).value =
+  document.getElementById("quoteComplement").value =
     client.complemento || "";
 
-  document.getElementById(
-    "quoteNeighborhood"
-  ).value =
+  document.getElementById("quoteNeighborhood").value =
     client.bairro || "";
 
-  document.getElementById(
-    "quoteCity"
-  ).value =
+  document.getElementById("quoteCity").value =
     client.cidade || "";
 
-  document.getElementById(
-    "quoteState"
-  ).value =
+  document.getElementById("quoteState").value =
     client.estado || "";
+
 }
 
+
+/* ======================================================
+   ITENS
+   ====================================================== */
+
 function addQuoteItem() {
+
   currentQuoteItems.push({
     produto_id: "",
     variacao_id: "",
@@ -1265,23 +1659,22 @@ function addQuoteItem() {
 
   renderQuoteItems();
   updateQuoteSummary();
+
 }
 
 function removeQuoteItem(index) {
-  currentQuoteItems.splice(
-    index,
-    1
-  );
+
+  currentQuoteItems.splice(index, 1);
 
   renderQuoteItems();
   updateQuoteSummary();
+
 }
 
 function renderQuoteItems() {
+
   const container =
-    document.getElementById(
-      "quoteItems"
-    );
+    document.getElementById("quoteItems");
 
   if (!container) {
     return;
@@ -1307,258 +1700,216 @@ function renderQuoteItems() {
     `;
 
     return;
+
   }
 
   container.innerHTML =
-    currentQuoteItems.map(
-      (item, index) => {
+    currentQuoteItems.map((item, index) => {
 
-        const productVariations =
-          variations.filter(
-            variation =>
-              String(
-                variation.produto_id
-              ) ===
-              String(
-                item.produto_id
-              )
-          );
+      const productVariations =
+        variations.filter(
+          variation =>
+            String(variation.produto_id) ===
+            String(item.produto_id)
+        );
 
-        const itemSubtotal =
-          (
-            Number(
-              item.quantidade
-            ) || 0
-          ) *
-          (
-            Number(
-              item.preco_unitario
-            ) || 0
-          ) -
-          (
-            Number(
-              item.desconto
-            ) || 0
-          );
+      const itemSubtotal =
+        (Number(item.quantidade) || 0) *
+        (Number(item.preco_unitario) || 0) -
+        (Number(item.desconto) || 0);
 
-        return `
+      return `
+        <div
+          style="
+            padding:15px;
+            border:1px solid #ddd;
+            border-radius:8px;
+            margin-bottom:15px;
+          "
+        >
+
           <div
             style="
-              padding:15px;
-              border:1px solid #ddd;
-              border-radius:8px;
-              margin-bottom:15px;
+              display:grid;
+              grid-template-columns:2fr 2fr 1fr 1fr auto;
+              gap:10px;
+              align-items:end;
             "
           >
 
-            <div
-              style="
-                display:grid;
-                grid-template-columns:2fr 2fr 1fr 1fr auto;
-                gap:10px;
-                align-items:end;
-              "
-            >
-
-              <div>
-
-                <label>
-                  Produto
-                </label>
-
-                <select
-                  onchange="
-                    changeQuoteItemProduct(
-                      ${index},
-                      this.value
-                    )
-                  "
-                >
-
-                  ${buildQuoteProductOptions(
-                    item.produto_id
-                  )}
-
-                </select>
-
-              </div>
-
-
-              <div>
-
-                <label>
-                  Variação
-                </label>
-
-                <select
-                  onchange="
-                    changeQuoteItemVariation(
-                      ${index},
-                      this.value
-                    )
-                  "
-                  ${
-                    !productVariations.length
-                      ? "disabled"
-                      : ""
-                  }
-                >
-
-                  <option value="">
-                    ${
-                      productVariations.length
-                        ? "Selecione"
-                        : "Sem variação"
-                    }
-                  </option>
-
-                  ${productVariations.map(
-                    variation => `
-
-                      <option
-                        value="${variation.id}"
-                        ${
-                          String(
-                            variation.id
-                          ) ===
-                          String(
-                            item.variacao_id
-                          )
-                            ? "selected"
-                            : ""
-                        }
-                      >
-                        ${escapeHtml(
-                          variation.nome
-                        )}
-                      </option>
-
-                    `
-                  ).join("")}
-
-                </select>
-
-              </div>
-
-
-              <div>
-
-                <label>
-                  Quantidade
-                </label>
-
-                <input
-                  type="number"
-                  min="0.001"
-                  step="0.001"
-                  value="${item.quantidade}"
-                  onchange="
-                    changeQuoteItemQuantity(
-                      ${index},
-                      this.value
-                    )
-                  "
-                >
-
-              </div>
-
-
-              <div>
-
-                <label>
-                  Preço unitário
-                </label>
-
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value="${item.preco_unitario}"
-                  onchange="
-                    changeQuoteItemPrice(
-                      ${index},
-                      this.value
-                    )
-                  "
-                >
-
-              </div>
-
-
-              <button
-                type="button"
-                class="btn btn-danger"
-                onclick="
-                  removeQuoteItem(
-                    ${index}
-                  )
-                "
-              >
-                ×
-              </button>
-
-            </div>
-
-
-            <div style="margin-top:10px;">
+            <div>
 
               <label>
-                Observação do item
+                Produto
               </label>
 
-              <input
-                type="text"
-                value="${escapeHtml(
-                  item.observacao || ""
-                )}"
+              <select
                 onchange="
-                  changeQuoteItemObservation(
+                  changeQuoteItemProduct(
                     ${index},
                     this.value
                   )
                 "
-                placeholder="Observação..."
+              >
+
+                ${buildQuoteProductOptions(item.produto_id)}
+
+              </select>
+
+            </div>
+
+
+            <div>
+
+              <label>
+                Variação
+              </label>
+
+              <select
+                onchange="
+                  changeQuoteItemVariation(
+                    ${index},
+                    this.value
+                  )
+                "
+                ${!productVariations.length ? "disabled" : ""}
+              >
+
+                <option value="">
+                  ${
+                    productVariations.length
+                      ? "Selecione"
+                      : "Sem variação"
+                  }
+                </option>
+
+                ${productVariations.map(variation => `
+
+                  <option
+                    value="${variation.id}"
+                    ${
+                      String(variation.id) ===
+                      String(item.variacao_id)
+                        ? "selected"
+                        : ""
+                    }
+                  >
+                    ${escapeHtml(variation.nome)}
+                  </option>
+
+                `).join("")}
+
+              </select>
+
+            </div>
+
+
+            <div>
+
+              <label>
+                Quantidade
+              </label>
+
+              <input
+                type="number"
+                min="0.001"
+                step="0.001"
+                value="${item.quantidade}"
+                onchange="
+                  changeQuoteItemQuantity(
+                    ${index},
+                    this.value
+                  )
+                "
               >
 
             </div>
 
 
-            <div
-              style="
-                text-align:right;
-                margin-top:10px;
-              "
-            >
+            <div>
 
-              <strong>
-                Subtotal:
-                ${quoteMoney(
-                  itemSubtotal
-                )}
-              </strong>
+              <label>
+                Preço unitário
+              </label>
+
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value="${item.preco_unitario}"
+                onchange="
+                  changeQuoteItemPrice(
+                    ${index},
+                    this.value
+                  )
+                "
+              >
 
             </div>
 
+
+            <button
+              type="button"
+              class="btn btn-danger"
+              onclick="removeQuoteItem(${index})"
+            >
+              ×
+            </button>
+
           </div>
-        `;
-      }
-    ).join("");
+
+
+          <div style="margin-top:10px;">
+
+            <label>
+              Observação do item
+            </label>
+
+            <input
+              type="text"
+              value="${escapeHtml(item.observacao || "")}"
+              onchange="
+                changeQuoteItemObservation(
+                  ${index},
+                  this.value
+                )
+              "
+              placeholder="Observação..."
+            >
+
+          </div>
+
+
+          <div
+            style="
+              text-align:right;
+              margin-top:10px;
+            "
+          >
+
+            <strong>
+              Subtotal:
+              ${quoteMoney(itemSubtotal)}
+            </strong>
+
+          </div>
+
+        </div>
+      `;
+
+    }).join("");
+
 }
 
-function changeQuoteItemProduct(
-  index,
-  productId
-) {
-  const item =
-    currentQuoteItems[index];
+function changeQuoteItemProduct(index, productId) {
+
+  const item = currentQuoteItems[index];
 
   if (!item) {
     return;
   }
 
-  item.produto_id =
-    productId;
-
+  item.produto_id = productId;
   item.variacao_id = "";
 
   const product =
@@ -1570,49 +1921,36 @@ function changeQuoteItemProduct(
 
   item.preco_unitario =
     product
-      ? Number(
-          product.preco_venda
-        ) || 0
+      ? Number(product.preco_venda) || 0
       : 0;
 
   renderQuoteItems();
   updateQuoteSummary();
+
 }
 
-function changeQuoteItemVariation(
-  index,
-  variationId
-) {
-  const item =
-    currentQuoteItems[index];
+function changeQuoteItemVariation(index, variationId) {
+
+  const item = currentQuoteItems[index];
 
   if (!item) {
     return;
   }
 
-  item.variacao_id =
-    variationId;
+  item.variacao_id = variationId;
 
   if (variationId) {
 
     const variation =
       variations.find(
         variation =>
-          String(
-            variation.id
-          ) ===
-          String(
-            variationId
-          )
+          String(variation.id) ===
+          String(variationId)
       );
 
     if (variation) {
-
       item.preco_unitario =
-        Number(
-          variation.preco_venda
-        ) || 0;
-
+        Number(variation.preco_venda) || 0;
     }
 
   } else {
@@ -1625,109 +1963,77 @@ function changeQuoteItemVariation(
       );
 
     if (product) {
-
       item.preco_unitario =
-        Number(
-          product.preco_venda
-        ) || 0;
-
+        Number(product.preco_venda) || 0;
     }
 
   }
 
   renderQuoteItems();
   updateQuoteSummary();
+
 }
 
-function changeQuoteItemQuantity(
-  index,
-  value
-) {
+function changeQuoteItemQuantity(index, value) {
+
   if (!currentQuoteItems[index]) {
     return;
   }
 
-  currentQuoteItems[index]
-    .quantidade =
+  currentQuoteItems[index].quantidade =
     Number(value) || 0;
 
   renderQuoteItems();
   updateQuoteSummary();
+
 }
 
-function changeQuoteItemPrice(
-  index,
-  value
-) {
+function changeQuoteItemPrice(index, value) {
+
   if (!currentQuoteItems[index]) {
     return;
   }
 
-  currentQuoteItems[index]
-    .preco_unitario =
+  currentQuoteItems[index].preco_unitario =
     Number(value) || 0;
 
   renderQuoteItems();
   updateQuoteSummary();
+
 }
 
-function changeQuoteItemObservation(
-  index,
-  value
-) {
+function changeQuoteItemObservation(index, value) {
+
   if (!currentQuoteItems[index]) {
     return;
   }
 
-  currentQuoteItems[index]
-    .observacao = value;
+  currentQuoteItems[index].observacao = value;
+
 }
+
+
+/* ======================================================
+   RESUMO
+   ====================================================== */
 
 function updateQuoteSummary() {
+
   let subtotal = 0;
 
-  currentQuoteItems.forEach(
-    item => {
+  currentQuoteItems.forEach(item => {
 
-      subtotal +=
-        (
-          Number(
-            item.quantidade
-          ) || 0
-        ) *
-        (
-          Number(
-            item.preco_unitario
-          ) || 0
-        ) -
-        (
-          Number(
-            item.desconto
-          ) || 0
-        );
+    subtotal +=
+      (Number(item.quantidade) || 0) *
+      (Number(item.preco_unitario) || 0) -
+      (Number(item.desconto) || 0);
 
-    }
-  );
+  });
 
-  const discount =
-    getQuoteNumberValue(
-      "quoteDiscount"
-    );
-
-  const increase =
-    getQuoteNumberValue(
-      "quoteIncrease"
-    );
-
-  const labor =
-    getQuoteNumberValue(
-      "quoteLabor"
-    );
-
-  const freight =
-    getQuoteNumberValue(
-      "quoteFreight"
-    );
+  const discount = getQuoteNumberValue("quoteDiscount");
+  const increase = getQuoteNumberValue("quoteIncrease");
+  const labor    = getQuoteNumberValue("quoteLabor");
+  const freight  = getQuoteNumberValue("quoteFreight");
 
   const total =
     subtotal +
@@ -1738,327 +2044,186 @@ function updateQuoteSummary() {
 
   const values = {
 
-    quoteSummarySubtotal:
-      subtotal,
-
-    quoteSummaryLabor:
-      labor,
-
-    quoteSummaryFreight:
-      freight,
-
-    quoteSummaryIncrease:
-      increase,
-
-    quoteSummaryDiscount:
-      discount,
-
-    quoteSummaryTotal:
-      Math.max(
-        total,
-        0
-      )
+    quoteSummarySubtotal: subtotal,
+    quoteSummaryLabor: labor,
+    quoteSummaryFreight: freight,
+    quoteSummaryIncrease: increase,
+    quoteSummaryDiscount: discount,
+    quoteSummaryTotal: Math.max(total, 0)
 
   };
 
-  Object.keys(values).forEach(
-    id => {
+  Object.keys(values).forEach(id => {
 
-      const element =
-        document.getElementById(id);
+    const element = document.getElementById(id);
 
-      if (element) {
-
-        element.textContent =
-          quoteMoney(
-            values[id]
-          );
-
-      }
-
+    if (element) {
+      element.textContent =
+        quoteMoney(values[id]);
     }
-  );
+
+  });
+
 }
 
 function getQuoteDeliveryAddress() {
+
   const cep =
-    document.getElementById(
-      "quoteCep"
-    )?.value.trim() || "";
+    document.getElementById("quoteCep")?.value.trim() || "";
 
   const address =
-    document.getElementById(
-      "quoteAddress"
-    )?.value.trim() || "";
+    document.getElementById("quoteAddress")?.value.trim() || "";
 
   const number =
-    document.getElementById(
-      "quoteNumber"
-    )?.value.trim() || "";
+    document.getElementById("quoteNumber")?.value.trim() || "";
 
   const complement =
-    document.getElementById(
-      "quoteComplement"
-    )?.value.trim() || "";
+    document.getElementById("quoteComplement")?.value.trim() || "";
 
   const neighborhood =
-    document.getElementById(
-      "quoteNeighborhood"
-    )?.value.trim() || "";
+    document.getElementById("quoteNeighborhood")?.value.trim() || "";
 
   const city =
-    document.getElementById(
-      "quoteCity"
-    )?.value.trim() || "";
+    document.getElementById("quoteCity")?.value.trim() || "";
 
   const state =
-    document.getElementById(
-      "quoteState"
-    )?.value.trim() || "";
+    document.getElementById("quoteState")?.value.trim() || "";
 
   const lines = [];
 
   if (cep) {
-    lines.push(
-      `CEP: ${cep}`
-    );
+    lines.push(`CEP: ${cep}`);
   }
 
   if (address) {
 
-    let line =
-      `Endereço: ${address}`;
+    let line = `Endereço: ${address}`;
 
     if (number) {
-      line +=
-        `, Nº ${number}`;
+      line += `, Nº ${number}`;
     }
 
     lines.push(line);
+
   }
 
   if (complement) {
-    lines.push(
-      `Complemento: ${complement}`
-    );
+    lines.push(`Complemento: ${complement}`);
   }
 
   if (neighborhood) {
-    lines.push(
-      `Bairro: ${neighborhood}`
-    );
+    lines.push(`Bairro: ${neighborhood}`);
   }
 
   if (city || state) {
 
     lines.push(
-      `Cidade: ${city}${
-        state
-          ? " - " + state
-          : ""
-      }`
+      `Cidade: ${city}${state ? " - " + state : ""}`
     );
 
   }
 
   return lines.join("\n");
+
 }
 
+
+/* ======================================================
+   SALVAR ORÇAMENTO
+   ====================================================== */
+
 async function saveQuote() {
+
   if (!currentQuoteItems.length) {
-
-    alert(
-      "Adicione pelo menos um produto ao orçamento."
-    );
-
+    alert("Adicione pelo menos um produto ao orçamento.");
     return;
   }
 
   const clientId =
-    document.getElementById(
-      "quoteClient"
-    ).value;
+    document.getElementById("quoteClient").value;
 
   if (!clientId) {
-
-    alert(
-      "Selecione um cliente."
-    );
-
+    alert("Selecione um cliente.");
     return;
   }
 
-  for (
-    const item of currentQuoteItems
-  ) {
+  for (const item of currentQuoteItems) {
 
     if (!item.produto_id) {
-
-      alert(
-        "Selecione o produto de todos os itens."
-      );
-
+      alert("Selecione o produto de todos os itens.");
       return;
     }
 
-    if (
-      !item.quantidade ||
-      Number(item.quantidade) <= 0
-    ) {
-
-      alert(
-        "Informe uma quantidade válida para todos os produtos."
-      );
-
+    if (!item.quantidade || Number(item.quantidade) <= 0) {
+      alert("Informe uma quantidade válida para todos os produtos.");
       return;
     }
 
   }
 
   const subtotal =
-    currentQuoteItems.reduce(
-      (total, item) => {
+    currentQuoteItems.reduce((total, item) => {
 
-        const quantidade =
-          Number(
-            item.quantidade
-          ) || 0;
+      const quantidade = Number(item.quantidade) || 0;
+      const precoUnitario = Number(item.preco_unitario) || 0;
+      const descontoItem = Number(item.desconto) || 0;
 
-        const precoUnitario =
-          Number(
-            item.preco_unitario
-          ) || 0;
+      return total +
+        (quantidade * precoUnitario - descontoItem);
 
-        const descontoItem =
-          Number(
-            item.desconto
-          ) || 0;
+    }, 0);
 
-        const subtotalItem =
-          quantidade *
-          precoUnitario -
-          descontoItem;
-
-        return total +
-          subtotalItem;
-
-      },
-      0
-    );
-
-  const desconto =
-    getQuoteNumberValue(
-      "quoteDiscount"
-    );
-
-  const acrescimo =
-    getQuoteNumberValue(
-      "quoteIncrease"
-    );
-
-  const maoDeObra =
-    getQuoteNumberValue(
-      "quoteLabor"
-    );
-
-  const frete =
-    getQuoteNumberValue(
-      "quoteFreight"
-    );
+  const desconto  = getQuoteNumberValue("quoteDiscount");
+  const acrescimo = getQuoteNumberValue("quoteIncrease");
+  const maoDeObra = getQuoteNumberValue("quoteLabor");
+  const frete     = getQuoteNumberValue("quoteFreight");
 
   const valorTotal =
     Math.max(
-      subtotal -
-      desconto +
-      acrescimo +
-      frete +
-      maoDeObra,
+      subtotal - desconto + acrescimo + frete + maoDeObra,
       0
     );
 
-  const subtotalFinal =
-    Number(
-      subtotal.toFixed(2)
-    );
-
-  const descontoFinal =
-    Number(
-      desconto.toFixed(2)
-    );
-
-  const acrescimoFinal =
-    Number(
-      acrescimo.toFixed(2)
-    );
-
-  const freteFinal =
-    Number(
-      frete.toFixed(2)
-    );
-
-  const maoDeObraFinal =
-    Number(
-      maoDeObra.toFixed(2)
-    );
-
-  const valorTotalFinal =
-    Number(
-      valorTotal.toFixed(2)
-    );
+  const subtotalFinal    = Number(subtotal.toFixed(2));
+  const descontoFinal    = Number(desconto.toFixed(2));
+  const acrescimoFinal   = Number(acrescimo.toFixed(2));
+  const freteFinal       = Number(frete.toFixed(2));
+  const maoDeObraFinal   = Number(maoDeObra.toFixed(2));
+  const valorTotalFinal  = Number(valorTotal.toFixed(2));
 
   const quoteData = {
 
-    id_loja:
-      currentStore.id_loja,
+    id_loja: currentStore.id_loja,
 
-    cliente_id:
-      Number(clientId),
+    cliente_id: Number(clientId),
 
     data_pedido:
-      document.getElementById(
-        "quoteDate"
-      ).value,
+      document.getElementById("quoteDate").value,
 
-    status:
-      "Orçamento",
+    status: "Orçamento",
 
-    subtotal:
-      subtotalFinal,
-
-    desconto:
-      descontoFinal,
-
-    acrescimo:
-      acrescimoFinal,
-
-    frete:
-      freteFinal,
-
-    mao_de_obra:
-      maoDeObraFinal,
-
-    valor_total:
-      valorTotalFinal,
+    subtotal: subtotalFinal,
+    desconto: descontoFinal,
+    acrescimo: acrescimoFinal,
+    frete: freteFinal,
+    mao_de_obra: maoDeObraFinal,
+    valor_total: valorTotalFinal,
 
     prazo_entrega:
-      document.getElementById(
-        "quoteDeliveryDeadline"
-      ).value.trim(),
+      document.getElementById("quoteDeliveryDeadline").value.trim(),
 
     forma_pagamento:
-      document.getElementById(
-        "quotePayment"
-      ).value.trim(),
+      document.getElementById("quotePayment").value.trim(),
 
-    endereco_entrega:
-      getQuoteDeliveryAddress(),
+    endereco_entrega: getQuoteDeliveryAddress(),
 
     observacoes:
-      document.getElementById(
-        "quoteNotes"
-      ).value.trim()
+      document.getElementById("quoteNotes").value.trim()
 
   };
+
+
+  /* ---------- EDIÇÃO ---------- */
 
   if (editingQuoteId) {
 
@@ -2066,181 +2231,91 @@ async function saveQuote() {
       data: updatedQuote,
       error: quoteError
     } = await db
-      .from(
-        "gestao_loja_pedidos"
-      )
+      .from("gestao_loja_pedidos")
       .update(quoteData)
-      .eq(
-        "id",
-        editingQuoteId
-      )
-      .eq(
-        "id_loja",
-        currentStore.id_loja
-      )
+      .eq("id", editingQuoteId)
+      .eq("id_loja", currentStore.id_loja)
       .select()
       .single();
 
     if (quoteError) {
-
-      alert(
-        "Erro ao atualizar orçamento:\n" +
-        quoteError.message
-      );
-
+      alert("Erro ao atualizar orçamento:\n" + quoteError.message);
       return;
     }
 
-    const {
-      error: deleteItemsError
-    } = await db
-      .from(
-        "gestao_loja_pedidos_itens"
-      )
+    const { error: deleteItemsError } = await db
+      .from("gestao_loja_pedidos_itens")
       .delete()
-      .eq(
-        "pedido_id",
-        editingQuoteId
-      );
+      .eq("pedido_id", editingQuoteId);
 
     if (deleteItemsError) {
-
       alert(
         "Erro ao atualizar os itens:\n" +
         deleteItemsError.message
       );
-
       return;
     }
 
     const itemsData =
-      currentQuoteItems.map(
-        item => {
+      currentQuoteItems.map(item => {
 
-          const quantidade =
-            Number(
-              item.quantidade
-            ) || 0;
+        const quantidade = Number(item.quantidade) || 0;
+        const precoUnitario = Number(item.preco_unitario) || 0;
+        const descontoItem = Number(item.desconto) || 0;
+        const subtotalItem =
+          quantidade * precoUnitario - descontoItem;
 
-          const precoUnitario =
-            Number(
-              item.preco_unitario
-            ) || 0;
+        return {
 
-          const descontoItem =
-            Number(
-              item.desconto
-            ) || 0;
+          id_loja: currentStore.id_loja,
+          pedido_id: updatedQuote.id,
 
-          const subtotalItem =
-            quantidade *
-            precoUnitario -
-            descontoItem;
+          produto_id: Number(item.produto_id),
+          variacao_id: item.variacao_id
+            ? Number(item.variacao_id)
+            : null,
 
-          return {
+          quantidade,
+          preco_unitario: precoUnitario,
+          desconto: descontoItem,
+          subtotal: Number(subtotalItem.toFixed(2)),
 
-            id_loja:
-              currentStore.id_loja,
+          observacao: item.observacao || null
 
-            pedido_id:
-              updatedQuote.id,
+        };
 
-            produto_id:
-              Number(
-                item.produto_id
-              ),
+      });
 
-            variacao_id:
-              item.variacao_id
-                ? Number(
-                    item.variacao_id
-                  )
-                : null,
-
-            quantidade:
-              quantidade,
-
-            preco_unitario:
-              precoUnitario,
-
-            desconto:
-              descontoItem,
-
-            subtotal:
-              Number(
-                subtotalItem.toFixed(2)
-              ),
-
-            observacao:
-              item.observacao ||
-              null
-
-          };
-
-        }
-      );
-
-    const {
-      error: itemsError
-    } = await db
-      .from(
-        "gestao_loja_pedidos_itens"
-      )
+    const { error: itemsError } = await db
+      .from("gestao_loja_pedidos_itens")
       .insert(itemsData);
 
     if (itemsError) {
-
       alert(
         "Erro ao salvar os itens do orçamento:\n" +
         itemsError.message
       );
-
       return;
     }
 
-    const {
-      error: finalUpdateError
-    } = await db
-      .from(
-        "gestao_loja_pedidos"
-      )
+    const { error: finalUpdateError } = await db
+      .from("gestao_loja_pedidos")
       .update({
-
-        subtotal:
-          subtotalFinal,
-
-        desconto:
-          descontoFinal,
-
-        acrescimo:
-          acrescimoFinal,
-
-        frete:
-          freteFinal,
-
-        mao_de_obra:
-          maoDeObraFinal,
-
-        valor_total:
-          valorTotalFinal
-
+        subtotal: subtotalFinal,
+        desconto: descontoFinal,
+        acrescimo: acrescimoFinal,
+        frete: freteFinal,
+        mao_de_obra: maoDeObraFinal,
+        valor_total: valorTotalFinal
       })
-      .eq(
-        "id",
-        editingQuoteId
-      )
-      .eq(
-        "id_loja",
-        currentStore.id_loja
-      );
+      .eq("id", editingQuoteId)
+      .eq("id_loja", currentStore.id_loja);
 
     if (finalUpdateError) {
-
       alert(
         "Os itens foram atualizados, mas ocorreu um erro ao atualizar o valor total:\n" +
         finalUpdateError.message
       );
-
       return;
     }
 
@@ -2248,129 +2323,71 @@ async function saveQuote() {
     currentQuoteItems = [];
 
     closeModal();
-
     await loadQuotes();
 
     alert(
       "Orçamento atualizado com sucesso.\n\n" +
-      "Total: " +
-      quoteMoney(
-        valorTotalFinal
-      )
+      "Total: " + quoteMoney(valorTotalFinal)
     );
 
     return;
+
   }
 
-  const {
-    data: quote,
-    error
-  } = await db
-    .from(
-      "gestao_loja_pedidos"
-    )
-    .insert(
-      quoteData
-    )
+
+  /* ---------- CRIAÇÃO ---------- */
+
+  const { data: quote, error } = await db
+    .from("gestao_loja_pedidos")
+    .insert(quoteData)
     .select()
     .single();
 
   if (error) {
-
-    alert(
-      "Erro ao salvar orçamento:\n" +
-      error.message
-    );
-
+    alert("Erro ao salvar orçamento:\n" + error.message);
     return;
   }
 
   const itemsData =
-    currentQuoteItems.map(
-      item => {
+    currentQuoteItems.map(item => {
 
-        const quantidade =
-          Number(
-            item.quantidade
-          ) || 0;
+      const quantidade = Number(item.quantidade) || 0;
+      const precoUnitario = Number(item.preco_unitario) || 0;
+      const descontoItem = Number(item.desconto) || 0;
+      const subtotalItem =
+        quantidade * precoUnitario - descontoItem;
 
-        const precoUnitario =
-          Number(
-            item.preco_unitario
-          ) || 0;
+      return {
 
-        const descontoItem =
-          Number(
-            item.desconto
-          ) || 0;
+        id_loja: currentStore.id_loja,
+        pedido_id: quote.id,
 
-        const subtotalItem =
-          quantidade *
-          precoUnitario -
-          descontoItem;
+        produto_id: Number(item.produto_id),
+        variacao_id: item.variacao_id
+          ? Number(item.variacao_id)
+          : null,
 
-        return {
+        quantidade,
+        preco_unitario: precoUnitario,
+        desconto: descontoItem,
+        subtotal: Number(subtotalItem.toFixed(2)),
 
-          id_loja:
-            currentStore.id_loja,
+        observacao: item.observacao || null
 
-          pedido_id:
-            quote.id,
+      };
 
-          produto_id:
-            Number(
-              item.produto_id
-            ),
+    });
 
-          variacao_id:
-            item.variacao_id
-              ? Number(
-                  item.variacao_id
-                )
-              : null,
-
-          quantidade:
-            quantidade,
-
-          preco_unitario:
-            precoUnitario,
-
-          desconto:
-            descontoItem,
-
-          subtotal:
-            Number(
-              subtotalItem.toFixed(2)
-            ),
-
-          observacao:
-            item.observacao ||
-            null
-
-        };
-
-      }
-    );
-
-  const {
-    error: itemsError
-  } = await db
-    .from(
-      "gestao_loja_pedidos_itens"
-    )
+  const { error: itemsError } = await db
+    .from("gestao_loja_pedidos_itens")
     .insert(itemsData);
 
   if (itemsError) {
 
     await db
-      .from(
-        "gestao_loja_pedidos"
-      )
+      .from("gestao_loja_pedidos")
       .delete()
-      .eq(
-        "id",
-        quote.id
-      );
+      .eq("id", quote.id);
 
     alert(
       "Erro ao salvar os itens do orçamento:\n" +
@@ -2378,77 +2395,52 @@ async function saveQuote() {
     );
 
     return;
+
   }
 
-  const {
-    error: finalUpdateError
-  } = await db
-    .from(
-      "gestao_loja_pedidos"
-    )
+  const { error: finalUpdateError } = await db
+    .from("gestao_loja_pedidos")
     .update({
-
-      subtotal:
-        subtotalFinal,
-
-      desconto:
-        descontoFinal,
-
-      acrescimo:
-        acrescimoFinal,
-
-      frete:
-        freteFinal,
-
-      mao_de_obra:
-        maoDeObraFinal,
-
-      valor_total:
-        valorTotalFinal
-
+      subtotal: subtotalFinal,
+      desconto: descontoFinal,
+      acrescimo: acrescimoFinal,
+      frete: freteFinal,
+      mao_de_obra: maoDeObraFinal,
+      valor_total: valorTotalFinal
     })
-    .eq(
-      "id",
-      quote.id
-    )
-    .eq(
-      "id_loja",
-      currentStore.id_loja
-    );
+    .eq("id", quote.id)
+    .eq("id_loja", currentStore.id_loja);
 
   if (finalUpdateError) {
-
     alert(
       "Orçamento criado, mas ocorreu um erro ao atualizar o valor total:\n" +
       finalUpdateError.message
     );
-
     return;
   }
 
   closeModal();
-
   await loadQuotes();
 
   alert(
     "Orçamento salvo com sucesso.\n\n" +
-    "Total: " +
-    quoteMoney(
-      valorTotalFinal
-    )
+    "Total: " + quoteMoney(valorTotalFinal)
   );
+
 }
 
-async function viewQuote(
-  quoteId
-) {
+
+/* ======================================================
+   VISUALIZAR
+   ====================================================== */
+
+async function viewQuote(quoteId) {
+
   const {
     data: quote,
     error: quoteError
   } = await db
-    .from(
-      "gestao_loja_pedidos"
-    )
+    .from("gestao_loja_pedidos")
     .select(`
       *,
       gestao_loja_clientes (
@@ -2457,26 +2449,19 @@ async function viewQuote(
         telefone,
         whatsapp,
         email,
-        cpf_cnpj
+        cpf_cnpj,
+        tipo_cliente,
+        inscricao_estadual,
+        indicador_ie,
+        inscricao_municipal
       )
     `)
-    .eq(
-      "id",
-      quoteId
-    )
-    .eq(
-      "id_loja",
-      currentStore.id_loja
-    )
+    .eq("id", quoteId)
+    .eq("id_loja", currentStore.id_loja)
     .single();
 
   if (quoteError) {
-
-    alert(
-      "Erro ao carregar orçamento:\n" +
-      quoteError.message
-    );
-
+    alert("Erro ao carregar orçamento:\n" + quoteError.message);
     return;
   }
 
@@ -2484,9 +2469,7 @@ async function viewQuote(
     data: items,
     error: itemsError
   } = await db
-    .from(
-      "gestao_loja_pedidos_itens"
-    )
+    .from("gestao_loja_pedidos_itens")
     .select(`
       *,
       gestao_loja_produtos (
@@ -2500,113 +2483,78 @@ async function viewQuote(
         sku
       )
     `)
-    .eq(
-      "pedido_id",
-      quoteId
-    )
+    .eq("pedido_id", quoteId)
     .order("id");
 
   if (itemsError) {
-
-    alert(
-      "Erro ao carregar itens:\n" +
-      itemsError.message
-    );
-
+    alert("Erro ao carregar itens:\n" + itemsError.message);
     return;
   }
 
-  const client =
-    quote.gestao_loja_clientes;
+  const client = quote.gestao_loja_clientes;
 
-  document.getElementById(
-    "modal"
-  ).classList.remove(
-    "hidden"
-  );
+  const isPJ = isPessoaJuridica(client?.tipo_cliente);
+
+  document.getElementById("modal").classList.remove("hidden");
 
   document.querySelector(
     ".modal-card"
-  ).style.maxWidth =
-    "1100px";
+  ).style.maxWidth = "1100px";
 
   document.getElementById(
     "modalTitle"
   ).textContent =
-    `Orçamento #${
-      quote.numero ||
-      quote.id
-    }`;
+    `Orçamento #${quote.numero || quote.id}`;
 
   const itemsHtml =
-    (items || []).map(
-      item => {
+    (items || []).map(item => {
 
-        const product =
-          item.gestao_loja_produtos;
+      const product = item.gestao_loja_produtos;
+      const variation = item.gestao_loja_produtos_variacoes;
 
-        const variation =
-          item.gestao_loja_produtos_variacoes;
+      return `
+        <tr>
 
-        return `
-          <tr>
+          <td>
 
-            <td>
+            ${escapeHtml(product?.nome || "-")}
 
-              ${escapeHtml(
-                product?.nome ||
-                "-"
-              )}
+            ${
+              variation?.nome
+                ? `
+                  <br>
 
-              ${
-                variation?.nome
-                  ? `
-                    <br>
+                  <small class="muted">
+                    ${escapeHtml(variation.nome)}
+                  </small>
+                `
+                : ""
+            }
 
-                    <small class="muted">
-                      ${escapeHtml(
-                        variation.nome
-                      )}
-                    </small>
-                  `
-                  : ""
-              }
+          </td>
 
-            </td>
+          <td>
+            ${quoteNumber(item.quantidade)}
+          </td>
 
-            <td>
-              ${quoteNumber(
-                item.quantidade
-              )}
-            </td>
+          <td>
+            ${quoteMoney(item.preco_unitario)}
+          </td>
 
-            <td>
-              ${quoteMoney(
-                item.preco_unitario
-              )}
-            </td>
+          <td>
+            ${quoteMoney(item.subtotal)}
+          </td>
 
-            <td>
-              ${quoteMoney(
-                item.subtotal
-              )}
-            </td>
+          <td>
+            ${escapeHtml(item.observacao || "")}
+          </td>
 
-            <td>
-              ${escapeHtml(
-                item.observacao ||
-                ""
-              )}
-            </td>
+        </tr>
+      `;
 
-          </tr>
-        `;
-      }
-    ).join("");
+    }).join("");
 
-  document.getElementById(
-    "modalContent"
-  ).innerHTML = `
+  document.getElementById("modalContent").innerHTML = `
 
     <div
       style="
@@ -2629,42 +2577,27 @@ async function viewQuote(
 
         <p>
           <strong>Data:</strong>
-          ${formatQuoteDate(
-            quote.data_pedido
-          )}
+          ${formatQuoteDate(quote.data_pedido)}
         </p>
 
         <p>
 
           <strong>Status:</strong>
 
-          <span
-            class="status ${quoteStatusClass(
-              quote.status
-            )}"
-          >
-            ${escapeHtml(
-              quote.status ||
-              "Orçamento"
-            )}
+          <span class="status ${quoteStatusClass(quote.status)}">
+            ${escapeHtml(quote.status || "Orçamento")}
           </span>
 
         </p>
 
         <p>
           <strong>Forma de pagamento:</strong>
-          ${escapeHtml(
-            quote.forma_pagamento ||
-            "-"
-          )}
+          ${escapeHtml(quote.forma_pagamento || "-")}
         </p>
 
         <p>
           <strong>Prazo de entrega:</strong>
-          ${escapeHtml(
-            quote.prazo_entrega ||
-            "-"
-          )}
+          ${escapeHtml(quote.prazo_entrega || "-")}
         </p>
 
       </div>
@@ -2678,33 +2611,57 @@ async function viewQuote(
 
         <p>
           <strong>
-            ${escapeHtml(
-              client?.nome ||
-              "Cliente não informado"
-            )}
+            ${escapeHtml(client?.nome || "Cliente não informado")}
           </strong>
         </p>
 
+        ${
+          isPJ && client?.nome_fantasia
+            ? `
+              <p>
+                <strong>Nome fantasia:</strong>
+                ${escapeHtml(client.nome_fantasia)}
+              </p>
+            `
+            : ""
+        }
+
         <p>
-          ${escapeHtml(
-            client?.cpf_cnpj ||
-            ""
-          )}
+          <strong>
+            ${isPJ ? "CNPJ" : "CPF"}:
+          </strong>
+          ${escapeHtml(client?.cpf_cnpj || "-")}
+        </p>
+
+        ${
+          isPJ
+            ? `
+              <p>
+                <strong>Inscrição Estadual:</strong>
+                ${escapeHtml(client?.inscricao_estadual || "Não informada")}
+              </p>
+
+              <p>
+                <strong>Indicador de IE:</strong>
+                ${escapeHtml(getIndicadorIeLabel(client?.indicador_ie))}
+              </p>
+
+              <p>
+                <strong>Inscrição Municipal:</strong>
+                ${escapeHtml(client?.inscricao_municipal || "Não informada")}
+              </p>
+            `
+            : ""
+        }
+
+        <p>
+          <strong>Telefone:</strong>
+          ${escapeHtml(client?.telefone || client?.whatsapp || "-")}
         </p>
 
         <p>
-          ${escapeHtml(
-            client?.telefone ||
-            client?.whatsapp ||
-            ""
-          )}
-        </p>
-
-        <p>
-          ${escapeHtml(
-            client?.email ||
-            ""
-          )}
+          <strong>E-mail:</strong>
+          ${escapeHtml(client?.email || "-")}
         </p>
 
       </div>
@@ -2712,10 +2669,7 @@ async function viewQuote(
     </div>
 
 
-    <div
-      class="card"
-      style="margin-top:20px;"
-    >
+    <div class="card" style="margin-top:20px;">
 
       <h3>
         Endereço de entrega
@@ -2727,10 +2681,7 @@ async function viewQuote(
           margin-top:10px;
         "
       >
-        ${escapeHtml(
-          quote.endereco_entrega ||
-          "Endereço não informado."
-        )}
+        ${escapeHtml(quote.endereco_entrega || "Endereço não informado.")}
       </div>
 
     </div>
@@ -2748,10 +2699,7 @@ async function viewQuote(
         Produtos
       </h3>
 
-      <table
-        class="table"
-        style="margin-top:15px;"
-      >
+      <table class="table" style="margin-top:15px;">
 
         <thead>
 
@@ -2784,98 +2732,38 @@ async function viewQuote(
     >
 
       <div class="order-summary-row">
-
-        <span>
-          Subtotal
-        </span>
-
-        <strong>
-          ${quoteMoney(
-            quote.subtotal
-          )}
-        </strong>
-
+        <span>Subtotal</span>
+        <strong>${quoteMoney(quote.subtotal)}</strong>
       </div>
-
 
       <div class="order-summary-row">
-
-        <span>
-          Mão de obra
-        </span>
-
-        <strong>
-          ${quoteMoney(
-            quote.mao_de_obra
-          )}
-        </strong>
-
+        <span>Mão de obra</span>
+        <strong>${quoteMoney(quote.mao_de_obra)}</strong>
       </div>
-
 
       <div class="order-summary-row">
-
-        <span>
-          Frete
-        </span>
-
-        <strong>
-          ${quoteMoney(
-            quote.frete
-          )}
-        </strong>
-
+        <span>Frete</span>
+        <strong>${quoteMoney(quote.frete)}</strong>
       </div>
-
 
       <div class="order-summary-row">
-
-        <span>
-          Acréscimo
-        </span>
-
-        <strong>
-          ${quoteMoney(
-            quote.acrescimo
-          )}
-        </strong>
-
+        <span>Acréscimo</span>
+        <strong>${quoteMoney(quote.acrescimo)}</strong>
       </div>
-
 
       <div class="order-summary-row">
-
-        <span>
-          Desconto
-        </span>
-
-        <strong>
-          ${quoteMoney(
-            quote.desconto
-          )}
-        </strong>
-
+        <span>Desconto</span>
+        <strong>${quoteMoney(quote.desconto)}</strong>
       </div>
-
 
       <hr>
-
 
       <div
         class="order-summary-row"
         style="font-size:20px;"
       >
-
-        <strong>
-          Total
-        </strong>
-
-        <strong>
-          ${quoteMoney(
-            quote.valor_total
-          )}
-        </strong>
-
+        <strong>Total</strong>
+        <strong>${quoteMoney(quote.valor_total)}</strong>
       </div>
 
     </div>
@@ -2884,11 +2772,7 @@ async function viewQuote(
     ${
       quote.observacoes
         ? `
-
-          <div
-            class="card"
-            style="margin-top:20px;"
-          >
+          <div class="card" style="margin-top:20px;">
 
             <h3>
               Observações
@@ -2900,13 +2784,10 @@ async function viewQuote(
                 white-space:pre-wrap;
               "
             >
-              ${escapeHtml(
-                quote.observacoes
-              )}
+              ${escapeHtml(quote.observacoes)}
             </div>
 
           </div>
-
         `
         : ""
     }
@@ -2924,59 +2805,38 @@ async function viewQuote(
 
       <button
         class="btn btn-secondary"
-        onclick="
-          generateQuotePDF(
-            ${quote.id}
-          )
-        "
+        onclick="generateQuotePDF(${quote.id})"
       >
         📄 Gerar PDF
       </button>
 
 
       ${
-        isQuoteStatus(
-          quote.status
-        )
+        isQuoteStatus(quote.status)
           ? `
-
             <button
               class="btn btn-secondary"
-              onclick="
-                editQuote(
-                  ${quote.id}
-                )
-              "
+              onclick="editQuote(${quote.id})"
             >
               Editar
             </button>
 
             <button
               class="btn btn-primary"
-              onclick="
-                approveQuote(
-                  ${quote.id}
-                )
-              "
+              onclick="approveQuote(${quote.id})"
             >
               Aprovar orçamento
             </button>
 
             <button
               class="btn btn-danger"
-              onclick="
-                cancelQuote(
-                  ${quote.id}
-                )
-              "
+              onclick="cancelQuote(${quote.id})"
             >
               Cancelar
             </button>
-
           `
           : ""
       }
-
 
       <button
         class="btn btn-secondary"
@@ -2987,49 +2847,33 @@ async function viewQuote(
 
     </div>
   `;
+
 }
 
-async function editQuote(
-  quoteId
-) {
+
+/* ======================================================
+   EDITAR
+   ====================================================== */
+
+async function editQuote(quoteId) {
+
   const {
     data: quote,
     error: quoteError
   } = await db
-    .from(
-      "gestao_loja_pedidos"
-    )
+    .from("gestao_loja_pedidos")
     .select("*")
-    .eq(
-      "id",
-      quoteId
-    )
-    .eq(
-      "id_loja",
-      currentStore.id_loja
-    )
+    .eq("id", quoteId)
+    .eq("id_loja", currentStore.id_loja)
     .single();
 
   if (quoteError) {
-
-    alert(
-      "Erro ao carregar orçamento:\n" +
-      quoteError.message
-    );
-
+    alert("Erro ao carregar orçamento:\n" + quoteError.message);
     return;
   }
 
-  if (
-    !isQuoteStatus(
-      quote.status
-    )
-  ) {
-
-    alert(
-      "Somente orçamentos podem ser editados."
-    );
-
+  if (!isQuoteStatus(quote.status)) {
+    alert("Somente orçamentos podem ser editados.");
     return;
   }
 
@@ -3037,315 +2881,179 @@ async function editQuote(
     data: items,
     error: itemsError
   } = await db
-    .from(
-      "gestao_loja_pedidos_itens"
-    )
+    .from("gestao_loja_pedidos_itens")
     .select("*")
-    .eq(
-      "pedido_id",
-      quoteId
-    )
+    .eq("pedido_id", quoteId)
     .order("id");
 
   if (itemsError) {
-
-    alert(
-      "Erro ao carregar itens:\n" +
-      itemsError.message
-    );
-
+    alert("Erro ao carregar itens:\n" + itemsError.message);
     return;
   }
 
-  editingQuoteId =
-    quoteId;
+  editingQuoteId = quoteId;
 
   currentQuoteItems =
-    (items || []).map(
-      item => ({
+    (items || []).map(item => ({
 
-        produto_id:
-          item.produto_id,
+      produto_id: item.produto_id,
 
-        variacao_id:
-          item.variacao_id ||
-          "",
+      variacao_id: item.variacao_id || "",
 
-        quantidade:
-          Number(
-            item.quantidade
-          ),
+      quantidade: Number(item.quantidade),
 
-        preco_unitario:
-          Number(
-            item.preco_unitario
-          ),
+      preco_unitario: Number(item.preco_unitario),
 
-        desconto:
-          Number(
-            item.desconto || 0
-          ),
+      desconto: Number(item.desconto || 0),
 
-        observacao:
-          item.observacao ||
-          ""
+      observacao: item.observacao || ""
 
-      })
-    );
+    }));
 
-  document.getElementById(
-    "modal"
-  ).classList.remove(
-    "hidden"
-  );
+  document.getElementById("modal").classList.remove("hidden");
 
   document.querySelector(
     ".modal-card"
-  ).style.maxWidth =
-    "900px";
+  ).style.maxWidth = "900px";
 
   document.getElementById(
     "modalTitle"
   ).textContent =
-    `Editar orçamento #${
-      quote.numero ||
-      quote.id
-    }`;
+    `Editar orçamento #${quote.numero || quote.id}`;
 
   document.getElementById(
     "modalContent"
-  ).innerHTML =
-    buildQuoteForm();
+  ).innerHTML = buildQuoteForm();
 
-  document.getElementById(
-    "quoteClient"
-  ).value =
-    quote.cliente_id ||
-    "";
+  document.getElementById("quoteClient").value =
+    quote.cliente_id || "";
 
-  document.getElementById(
-    "quoteDate"
-  ).value =
-    quote.data_pedido ||
-    "";
+  document.getElementById("quoteDate").value =
+    quote.data_pedido || "";
 
-  document.getElementById(
-    "quoteDeliveryDeadline"
-  ).value =
-    quote.prazo_entrega ||
-    "";
+  document.getElementById("quoteDeliveryDeadline").value =
+    quote.prazo_entrega || "";
 
-  document.getElementById(
-    "quotePayment"
-  ).value =
-    quote.forma_pagamento ||
-    "";
+  document.getElementById("quotePayment").value =
+    quote.forma_pagamento || "";
 
-  document.getElementById(
-    "quoteDiscount"
-  ).value =
-    Number(
-      quote.desconto || 0
-    );
+  document.getElementById("quoteDiscount").value =
+    Number(quote.desconto || 0);
 
-  document.getElementById(
-    "quoteIncrease"
-  ).value =
-    Number(
-      quote.acrescimo || 0
-    );
+  document.getElementById("quoteIncrease").value =
+    Number(quote.acrescimo || 0);
 
-  document.getElementById(
-    "quoteLabor"
-  ).value =
-    Number(
-      quote.mao_de_obra || 0
-    );
+  document.getElementById("quoteLabor").value =
+    Number(quote.mao_de_obra || 0);
 
-  document.getElementById(
-    "quoteFreight"
-  ).value =
-    Number(
-      quote.frete || 0
-    );
+  document.getElementById("quoteFreight").value =
+    Number(quote.frete || 0);
 
-  document.getElementById(
-    "quoteNotes"
-  ).value =
-    quote.observacoes ||
-    "";
+  document.getElementById("quoteNotes").value =
+    quote.observacoes || "";
 
-  changeQuoteClient(
-    quote.cliente_id
-  );
+  changeQuoteClient(quote.cliente_id);
 
   renderQuoteItems();
   updateQuoteSummary();
+
 }
 
-async function approveQuote(
-  quoteId
-) {
-  const {
-    data: quote,
-    error
-  } = await db
-    .from(
-      "gestao_loja_pedidos"
-    )
+
+/* ======================================================
+   APROVAR / CANCELAR
+   ====================================================== */
+
+async function approveQuote(quoteId) {
+
+  const { data: quote, error } = await db
+    .from("gestao_loja_pedidos")
     .select("*")
-    .eq(
-      "id",
-      quoteId
-    )
-    .eq(
-      "id_loja",
-      currentStore.id_loja
-    )
+    .eq("id", quoteId)
+    .eq("id_loja", currentStore.id_loja)
     .single();
 
   if (error) {
-
-    alert(
-      "Erro ao carregar orçamento:\n" +
-      error.message
-    );
-
+    alert("Erro ao carregar orçamento:\n" + error.message);
     return;
   }
 
-  if (
-    !isQuoteStatus(
-      quote.status
-    )
-  ) {
-
-    alert(
-      "Este orçamento não está mais disponível para aprovação."
-    );
-
+  if (!isQuoteStatus(quote.status)) {
+    alert("Este orçamento não está mais disponível para aprovação.");
     return;
   }
 
-  const confirmed =
-    confirm(
-      `Deseja aprovar o orçamento #${
-        quote.numero ||
-        quote.id
-      }?\n\n` +
-
-      `Valor: ${
-        quoteMoney(
-          quote.valor_total
-        )
-      }\n\n` +
-
-      `O orçamento passará para o status "Pendente".`
-    );
+  const confirmed = confirm(
+    `Deseja aprovar o orçamento #${quote.numero || quote.id}?\n\n` +
+    `Valor: ${quoteMoney(quote.valor_total)}\n\n` +
+    `O orçamento passará para o status "Pendente".`
+  );
 
   if (!confirmed) {
     return;
   }
 
-  const {
-    error: updateError
-  } = await db
-    .from(
-      "gestao_loja_pedidos"
-    )
-    .update({
-      status:
-        "Pendente"
-    })
-    .eq(
-      "id",
-      quoteId
-    )
-    .eq(
-      "id_loja",
-      currentStore.id_loja
-    );
+  const { error: updateError } = await db
+    .from("gestao_loja_pedidos")
+    .update({ status: "Pendente" })
+    .eq("id", quoteId)
+    .eq("id_loja", currentStore.id_loja);
 
   if (updateError) {
-
-    alert(
-      "Erro ao aprovar orçamento:\n" +
-      updateError.message
-    );
-
+    alert("Erro ao aprovar orçamento:\n" + updateError.message);
     return;
   }
 
   closeModal();
-
   await loadQuotes();
 
   alert(
     "Orçamento aprovado.\n\n" +
     "Agora ele está como Pendente."
   );
+
 }
 
-async function cancelQuote(
-  quoteId
-) {
-  const confirmed =
-    confirm(
-      "Deseja cancelar este orçamento?"
-    );
+async function cancelQuote(quoteId) {
+
+  const confirmed = confirm(
+    "Deseja cancelar este orçamento?"
+  );
 
   if (!confirmed) {
     return;
   }
 
-  const {
-    error
-  } = await db
-    .from(
-      "gestao_loja_pedidos"
-    )
-    .update({
-      status:
-        "Cancelado"
-    })
-    .eq(
-      "id",
-      quoteId
-    )
-    .eq(
-      "id_loja",
-      currentStore.id_loja
-    );
+  const { error } = await db
+    .from("gestao_loja_pedidos")
+    .update({ status: "Cancelado" })
+    .eq("id", quoteId)
+    .eq("id_loja", currentStore.id_loja);
 
   if (error) {
-
-    alert(
-      "Erro ao cancelar orçamento:\n" +
-      error.message
-    );
-
+    alert("Erro ao cancelar orçamento:\n" + error.message);
     return;
   }
 
   closeModal();
-
   await loadQuotes();
 
-  alert(
-    "Orçamento cancelado."
-  );
+  alert("Orçamento cancelado.");
+
 }
 
-async function generateQuotePDF(
-  quoteId
-) {
+
+/* ======================================================
+   GERAR PDF
+   ====================================================== */
+
+async function generateQuotePDF(quoteId) {
+
   const {
     data: quote,
     error: quoteError
   } = await db
-    .from(
-      "gestao_loja_pedidos"
-    )
+    .from("gestao_loja_pedidos")
     .select(`
       *,
       gestao_loja_clientes (
@@ -3354,26 +3062,19 @@ async function generateQuotePDF(
         telefone,
         whatsapp,
         email,
-        cpf_cnpj
+        cpf_cnpj,
+        tipo_cliente,
+        inscricao_estadual,
+        indicador_ie,
+        inscricao_municipal
       )
     `)
-    .eq(
-      "id",
-      quoteId
-    )
-    .eq(
-      "id_loja",
-      currentStore.id_loja
-    )
+    .eq("id", quoteId)
+    .eq("id_loja", currentStore.id_loja)
     .single();
 
   if (quoteError) {
-
-    alert(
-      "Erro ao gerar PDF:\n" +
-      quoteError.message
-    );
-
+    alert("Erro ao gerar PDF:\n" + quoteError.message);
     return;
   }
 
@@ -3381,9 +3082,7 @@ async function generateQuotePDF(
     data: items,
     error: itemsError
   } = await db
-    .from(
-      "gestao_loja_pedidos_itens"
-    )
+    .from("gestao_loja_pedidos_itens")
     .select(`
       *,
       gestao_loja_produtos (
@@ -3397,119 +3096,80 @@ async function generateQuotePDF(
         sku
       )
     `)
-    .eq(
-      "pedido_id",
-      quoteId
-    )
+    .eq("pedido_id", quoteId)
     .order("id");
 
   if (itemsError) {
-
-    alert(
-      "Erro ao carregar itens para o PDF:\n" +
-      itemsError.message
-    );
-
+    alert("Erro ao carregar itens para o PDF:\n" + itemsError.message);
     return;
   }
 
-  const client =
-    quote.gestao_loja_clientes;
+  const client = quote.gestao_loja_clientes;
 
-  const storeName =
-    escapeHtml(
-      currentStore?.nome_fantasia ||
-      currentStore?.nome ||
-      "Gestão Loja"
-    );
+  const isPJ = isPessoaJuridica(client?.tipo_cliente);
 
-  const storeDocument =
-    escapeHtml(
-      currentStore?.cnpj ||
-      ""
-    );
+  const storeName = escapeHtml(
+    currentStore?.nome_fantasia ||
+    currentStore?.nome ||
+    "Gestão Loja"
+  );
 
-  const address =
-    escapeHtml(
-      quote.endereco_entrega ||
-      "-"
-    ).replace(
-      /\n/g,
-      "<br>"
-    );
+  const storeDocument = escapeHtml(
+    currentStore?.cnpj || ""
+  );
+
+  const address = escapeHtml(
+    quote.endereco_entrega || "-"
+  ).replace(/\n/g, "<br>");
 
   const itemsHtml =
-    (items || []).map(
-      item => {
+    (items || []).map(item => {
 
-        const product =
-          item.gestao_loja_produtos;
+      const product = item.gestao_loja_produtos;
+      const variation = item.gestao_loja_produtos_variacoes;
 
-        const variation =
-          item.gestao_loja_produtos_variacoes;
+      return `
+        <tr>
 
-        return `
-          <tr>
+          <td>
 
-            <td>
+            ${escapeHtml(product?.nome || "-")}
 
-              ${escapeHtml(
-                product?.nome ||
-                "-"
-              )}
+            ${
+              variation?.nome
+                ? `
+                  <br>
 
-              ${
-                variation?.nome
-                  ? `
-                    <br>
+                  <small>
+                    ${escapeHtml(variation.nome)}
+                  </small>
+                `
+                : ""
+            }
 
-                    <small>
-                      ${escapeHtml(
-                        variation.nome
-                      )}
-                    </small>
-                  `
-                  : ""
-              }
+          </td>
 
-            </td>
+          <td>${quoteNumber(item.quantidade)}</td>
 
-            <td>
-              ${quoteNumber(
-                item.quantidade
-              )}
-            </td>
+          <td>${quoteMoney(item.preco_unitario)}</td>
 
-            <td>
-              ${quoteMoney(
-                item.preco_unitario
-              )}
-            </td>
+          <td>${quoteMoney(item.subtotal)}</td>
 
-            <td>
-              ${quoteMoney(
-                item.subtotal
-              )}
-            </td>
+        </tr>
+      `;
 
-          </tr>
-        `;
-      }
-    ).join("");
+    }).join("");
 
-  const pdfWindow =
-    window.open(
-      "",
-      "_blank",
-      "width=900,height=700"
-    );
+  const pdfWindow = window.open(
+    "",
+    "_blank",
+    "width=900,height=700"
+  );
 
   if (!pdfWindow) {
-
     alert(
       "O navegador bloqueou a janela do PDF. Permita pop-ups para este site."
     );
-
     return;
   }
 
@@ -3526,124 +3186,114 @@ async function generateQuotePDF(
       <meta charset="UTF-8">
 
       <title>
-        Orçamento #${
-          quote.numero ||
-          quote.id
-        }
+        Orçamento #${quote.numero || quote.id}
       </title>
 
       <style>
 
-        * {
-          box-sizing:border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
-          font-family:Arial,Helvetica,sans-serif;
-          margin:0;
-          padding:30px;
-          color:#222;
-          font-size:13px;
+          font-family: Arial, Helvetica, sans-serif;
+          margin: 0;
+          padding: 30px;
+          color: #222;
+          font-size: 13px;
         }
 
         .header {
-          display:flex;
-          justify-content:space-between;
-          border-bottom:2px solid #222;
-          padding-bottom:15px;
-          margin-bottom:20px;
+          display: flex;
+          justify-content: space-between;
+          border-bottom: 2px solid #222;
+          padding-bottom: 15px;
+          margin-bottom: 20px;
         }
 
         .store {
-          font-size:22px;
-          font-weight:bold;
+          font-size: 22px;
+          font-weight: bold;
         }
 
         .title {
-          text-align:right;
-          font-size:22px;
-          font-weight:bold;
+          text-align: right;
+          font-size: 22px;
+          font-weight: bold;
         }
 
         .section {
-          margin-top:20px;
+          margin-top: 20px;
         }
 
         .section-title {
-          font-weight:bold;
-          font-size:15px;
-          border-bottom:1px solid #ccc;
-          padding-bottom:6px;
-          margin-bottom:10px;
+          font-weight: bold;
+          font-size: 15px;
+          border-bottom: 1px solid #ccc;
+          padding-bottom: 6px;
+          margin-bottom: 10px;
         }
 
         .info-grid {
-          display:grid;
-          grid-template-columns:1fr 1fr;
-          gap:10px 30px;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px 30px;
         }
 
         .info-label {
-          font-weight:bold;
+          font-weight: bold;
         }
 
         table {
-          width:100%;
-          border-collapse:collapse;
-          margin-top:10px;
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 10px;
         }
 
-        th,
-        td {
-          border:1px solid #ccc;
-          padding:9px;
+        th, td {
+          border: 1px solid #ccc;
+          padding: 9px;
         }
 
         th {
-          text-align:left;
-          background:#f2f2f2;
+          text-align: left;
+          background: #f2f2f2;
         }
 
         .totals {
-          width:350px;
-          margin-left:auto;
-          margin-top:20px;
+          width: 350px;
+          margin-left: auto;
+          margin-top: 20px;
         }
 
         .total-row {
-          display:flex;
-          justify-content:space-between;
-          padding:5px 0;
+          display: flex;
+          justify-content: space-between;
+          padding: 5px 0;
         }
 
         .grand-total {
-          font-size:20px;
-          font-weight:bold;
-          border-top:2px solid #222;
-          margin-top:8px;
-          padding-top:10px;
+          font-size: 20px;
+          font-weight: bold;
+          border-top: 2px solid #222;
+          margin-top: 8px;
+          padding-top: 10px;
         }
 
         .observations {
-          white-space:pre-wrap;
-          line-height:1.5;
+          white-space: pre-wrap;
+          line-height: 1.5;
         }
 
         .footer {
-          margin-top:40px;
-          padding-top:15px;
-          border-top:1px solid #ccc;
-          text-align:center;
-          font-size:11px;
-          color:#666;
+          margin-top: 40px;
+          padding-top: 15px;
+          border-top: 1px solid #ccc;
+          text-align: center;
+          font-size: 11px;
+          color: #666;
         }
 
         @media print {
-
-          body {
-            padding:10px;
-          }
-
+          body { padding: 10px; }
         }
 
       </style>
@@ -3660,15 +3310,7 @@ async function generateQuotePDF(
             ${storeName}
           </div>
 
-          ${
-            storeDocument
-              ? `
-                <div>
-                  ${storeDocument}
-                </div>
-              `
-              : ""
-          }
+          ${storeDocument ? `<div>${storeDocument}</div>` : ""}
 
         </div>
 
@@ -3676,12 +3318,7 @@ async function generateQuotePDF(
 
           ORÇAMENTO
 
-          <div>
-            #${
-              quote.numero ||
-              quote.id
-            }
-          </div>
+          <div>#${quote.numero || quote.id}</div>
 
         </div>
 
@@ -3697,86 +3334,64 @@ async function generateQuotePDF(
         <div class="info-grid">
 
           <div>
-
-            <span class="info-label">
-              Cliente:
-            </span>
-
-            ${escapeHtml(
-              client?.nome ||
-              "-"
-            )}
-
+            <span class="info-label">Cliente:</span>
+            ${escapeHtml(client?.nome || "-")}
           </div>
 
-
           <div>
-
-            <span class="info-label">
-              Data:
-            </span>
-
-            ${formatQuoteDate(
-              quote.data_pedido
-            )}
-
+            <span class="info-label">Data:</span>
+            ${formatQuoteDate(quote.data_pedido)}
           </div>
 
-
           <div>
-
-            <span class="info-label">
-              Status:
-            </span>
-
-            ${escapeHtml(
-              quote.status ||
-              "Orçamento"
-            )}
-
+            <span class="info-label">Status:</span>
+            ${escapeHtml(quote.status || "Orçamento")}
           </div>
 
-
           <div>
-
-            <span class="info-label">
-              Telefone:
-            </span>
-
-            ${escapeHtml(
-              client?.telefone ||
-              client?.whatsapp ||
-              "-"
-            )}
-
+            <span class="info-label">Telefone:</span>
+            ${escapeHtml(client?.telefone || client?.whatsapp || "-")}
           </div>
 
+          ${
+            isPJ
+              ? `
+                <div>
+                  <span class="info-label">CNPJ:</span>
+                  ${escapeHtml(client?.cpf_cnpj || "-")}
+                </div>
+
+                <div>
+                  <span class="info-label">Inscrição Estadual:</span>
+                  ${escapeHtml(client?.inscricao_estadual || "-")}
+                </div>
+
+                <div>
+                  <span class="info-label">Indicador de IE:</span>
+                  ${escapeHtml(getIndicadorIeLabel(client?.indicador_ie))}
+                </div>
+
+                <div>
+                  <span class="info-label">Inscrição Municipal:</span>
+                  ${escapeHtml(client?.inscricao_municipal || "-")}
+                </div>
+              `
+              : `
+                <div>
+                  <span class="info-label">CPF:</span>
+                  ${escapeHtml(client?.cpf_cnpj || "-")}
+                </div>
+              `
+          }
 
           <div>
-
-            <span class="info-label">
-              Forma de pagamento:
-            </span>
-
-            ${escapeHtml(
-              quote.forma_pagamento ||
-              "-"
-            )}
-
+            <span class="info-label">Forma de pagamento:</span>
+            ${escapeHtml(quote.forma_pagamento || "-")}
           </div>
 
-
           <div>
-
-            <span class="info-label">
-              Prazo de entrega:
-            </span>
-
-            ${escapeHtml(
-              quote.prazo_entrega ||
-              "-"
-            )}
-
+            <span class="info-label">Prazo de entrega:</span>
+            ${escapeHtml(quote.prazo_entrega || "-")}
           </div>
 
         </div>
@@ -3790,9 +3405,7 @@ async function generateQuotePDF(
           Endereço de entrega
         </div>
 
-        <div>
-          ${address}
-        </div>
+        <div>${address}</div>
 
       </div>
 
@@ -3809,21 +3422,10 @@ async function generateQuotePDF(
 
             <tr>
 
-              <th>
-                Produto
-              </th>
-
-              <th>
-                Qtd.
-              </th>
-
-              <th>
-                Valor unit.
-              </th>
-
-              <th>
-                Subtotal
-              </th>
+              <th>Produto</th>
+              <th>Qtd.</th>
+              <th>Valor unit.</th>
+              <th>Subtotal</th>
 
             </tr>
 
@@ -3841,92 +3443,33 @@ async function generateQuotePDF(
       <div class="totals">
 
         <div class="total-row">
-
-          <span>
-            Subtotal
-          </span>
-
-          <strong>
-            ${quoteMoney(
-              quote.subtotal
-            )}
-          </strong>
-
+          <span>Subtotal</span>
+          <strong>${quoteMoney(quote.subtotal)}</strong>
         </div>
-
 
         <div class="total-row">
-
-          <span>
-            Mão de obra
-          </span>
-
-          <strong>
-            ${quoteMoney(
-              quote.mao_de_obra
-            )}
-          </strong>
-
+          <span>Mão de obra</span>
+          <strong>${quoteMoney(quote.mao_de_obra)}</strong>
         </div>
-
 
         <div class="total-row">
-
-          <span>
-            Frete
-          </span>
-
-          <strong>
-            ${quoteMoney(
-              quote.frete
-            )}
-          </strong>
-
+          <span>Frete</span>
+          <strong>${quoteMoney(quote.frete)}</strong>
         </div>
-
 
         <div class="total-row">
-
-          <span>
-            Acréscimo
-          </span>
-
-          <strong>
-            ${quoteMoney(
-              quote.acrescimo
-            )}
-          </strong>
-
+          <span>Acréscimo</span>
+          <strong>${quoteMoney(quote.acrescimo)}</strong>
         </div>
-
 
         <div class="total-row">
-
-          <span>
-            Desconto
-          </span>
-
-          <strong>
-            ${quoteMoney(
-              quote.desconto
-            )}
-          </strong>
-
+          <span>Desconto</span>
+          <strong>${quoteMoney(quote.desconto)}</strong>
         </div>
-
 
         <div class="total-row grand-total">
-
-          <span>
-            TOTAL
-          </span>
-
-          <span>
-            ${quoteMoney(
-              quote.valor_total
-            )}
-          </span>
-
+          <span>TOTAL</span>
+          <span>${quoteMoney(quote.valor_total)}</span>
         </div>
 
       </div>
@@ -3935,7 +3478,6 @@ async function generateQuotePDF(
       ${
         quote.observacoes
           ? `
-
             <div class="section">
 
               <div class="section-title">
@@ -3943,13 +3485,10 @@ async function generateQuotePDF(
               </div>
 
               <div class="observations">
-                ${escapeHtml(
-                  quote.observacoes
-                )}
+                ${escapeHtml(quote.observacoes)}
               </div>
 
             </div>
-
           `
           : ""
       }
@@ -3967,22 +3506,27 @@ async function generateQuotePDF(
 
   pdfWindow.document.close();
 
-  setTimeout(
-    function() {
+  setTimeout(function() {
 
-      pdfWindow.focus();
+    pdfWindow.focus();
 
-      pdfWindow.print();
+    pdfWindow.print();
 
-    },
-    500
-  );
+  }, 500);
+
 }
+
+
+/* ======================================================
+   BOOT
+   ====================================================== */
 
 document.addEventListener(
   "DOMContentLoaded",
   async function() {
+
     try {
+
       const authenticated = await requireAuth();
 
       if (!authenticated) {
@@ -4008,9 +3552,7 @@ document.addEventListener(
       }
 
       const subtitle =
-        document.getElementById(
-          "pageSubtitle"
-        );
+        document.getElementById("pageSubtitle");
 
       if (subtitle) {
         subtitle.textContent =
@@ -4026,15 +3568,14 @@ document.addEventListener(
       await loadQuotes();
 
     } catch (error) {
+
       console.error(
         "Erro na página de orçamentos:",
         error
       );
 
       const container =
-        document.getElementById(
-          "quotesContainer"
-        );
+        document.getElementById("quotesContainer");
 
       if (container) {
         container.innerHTML = `
@@ -4044,13 +3585,14 @@ document.addEventListener(
             </h3>
             <p>
               ${escapeHtml(
-                error.message ||
-                "Erro desconhecido."
+                error.message || "Erro desconhecido."
               )}
             </p>
           </div>
         `;
       }
+
     }
+
   }
 );
