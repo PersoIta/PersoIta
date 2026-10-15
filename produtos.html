@@ -44,19 +44,23 @@
       <div id="content">
 
         <div class="section">
-
           <div class="section-head">
-
             <h2>Produtos cadastrados</h2>
 
-            <button
-              class="btn btn-primary"
-              onclick="newProduct()">
-              + Novo produto
-            </button>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button
+                class="btn btn-secondary"
+                onclick="newCategory()">
+                + Nova categoria
+              </button>
 
+              <button
+                class="btn btn-primary"
+                onclick="newProduct()">
+                + Novo produto
+              </button>
+            </div>
           </div>
-
           <div
             id="productsTable"
             class="loading">
@@ -132,20 +136,142 @@
 
       return `${prefixo}-${numero}`;
     }
+async function loadCategories() {
+  if (!currentStore || !currentStore.id_loja) {
+    throw new Error("Não foi possível identificar a loja.");
+  }
 
-    async function loadCategories() {
+  const result = await db
+    .from("gestao_loja_categorias")
+    .select("id,id_loja,nome")
+    .eq("id_loja", currentStore.id_loja)
+    .order("nome");
 
-      const result = await db
-        .from("gestao_loja_categorias")
-        .select("id,nome")
-        .order("nome");
+  if (result.error) {
+    throw result.error;
+  }
 
-      if (result.error) {
-        throw result.error;
-      }
-
-      categories = result.data || [];
+  categories = result.data || [];
+}
+    
+    function newCategory() {
+      openModal(
+        "Nova categoria",
+        categoryForm()
+      );
     }
+
+    function categoryForm() {
+      return `
+        <form onsubmit="saveCategory(event)">
+          <div>
+            <label for="c_nome">Nome da categoria *</label>
+
+            <input
+              id="c_nome"
+              type="text"
+              required
+              maxlength="100"
+              placeholder="Ex.: Canecas, Camisetas, Chinelos"
+              autocomplete="off">
+          </div>
+
+          <button
+            class="btn btn-primary full"
+            type="submit"
+            style="margin-top:16px;">
+            Salvar categoria
+          </button>
+        </form>
+      `;
+    }
+
+async function saveCategory(ev) {
+  ev.preventDefault();
+
+  if (!currentStore || !currentStore.id_loja) {
+    alert("Não foi possível identificar a loja responsável pelo cadastro.");
+    return;
+  }
+
+  const nome = $("c_nome").value.trim();
+
+  if (!nome) {
+    alert("Informe o nome da categoria.");
+    return;
+  }
+
+  const botao = ev.submitter;
+
+  if (botao) {
+    botao.disabled = true;
+    botao.textContent = "Salvando...";
+  }
+
+  try {
+    const idLoja = currentStore.id_loja;
+
+    // Verifica se a categoria já existe NESTA LOJA.
+    const consulta = await db
+      .from("gestao_loja_categorias")
+      .select("id,nome")
+      .eq("id_loja", idLoja)
+      .ilike("nome", nome);
+
+    if (consulta.error) {
+      throw consulta.error;
+    }
+
+    const existente = (consulta.data || []).some(
+      c => String(c.nome).trim().toLowerCase() ===
+           nome.toLowerCase()
+    );
+
+    if (existente) {
+      alert("Esta categoria já está cadastrada na sua loja.");
+      return;
+    }
+
+    // Cadastra a categoria vinculada à loja atual.
+    const resultado = await db
+      .from("gestao_loja_categorias")
+      .insert({
+        id_loja: idLoja,
+        nome: nome
+      })
+      .select("id,id_loja,nome")
+      .single();
+
+    if (resultado.error) {
+      throw resultado.error;
+    }
+
+    // Atualiza as categorias disponíveis.
+    await loadCategories();
+
+    // Fecha o modal.
+    closeModal();
+
+    // Atualiza a listagem de produtos.
+    await renderProducts();
+
+    alert("Categoria cadastrada com sucesso!");
+
+  } catch (e) {
+    console.error("Erro ao cadastrar categoria:", e);
+
+    alert(
+      "Não foi possível cadastrar a categoria.\n\n" +
+      (e.message || "Erro desconhecido.")
+    );
+
+  } finally {
+    if (botao && botao.isConnected) {
+      botao.disabled = false;
+      botao.textContent = "Salvar categoria";
+    }
+  }
+}
 
     async function loadProducts() {
 

@@ -420,23 +420,55 @@
   }
 
   /* ---------- Export CSV ---------- */
-  function csv() {
-    if (!filteredMovements.length) { error("Não há movimentações para exportar."); return; }
-    let data = [
-      ["ID", "Data", "Descrição", "Categoria", "Pedido", "Tipo", "Pagamento", "Status", "Valor"],
-      ...filteredMovements.map(m => [
-        m.id, m.data_movimento, m.descricao, m.categoria, m.pedido_id,
-        m.tipo, m.forma_pagamento, m.status, m.valor
-      ])
-    ];
-    let c = data.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(";")).join("\r\n"),
-      u = URL.createObjectURL(new Blob(["\ufeff" + c], { type: "text/csv;charset=utf-8" })),
-      a = document.createElement("a");
-    a.href = u;
-    a.download = `financeiro-${iso(new Date())}.csv`;
-    a.click();
-    URL.revokeObjectURL(u);
+/* ---------- Export CSV ---------- */
+function csv() {
+  if (!filteredMovements.length) {
+    error("Não há movimentações para exportar.");
+    return;
   }
+
+  // Formata valores no padrão brasileiro: 1234,56
+  function formatDecimal(value) {
+    return Number(value || 0).toFixed(2).replace(".", ",");
+  }
+
+  const data = [
+    ["ID", "Data", "Descrição", "Categoria", "Pedido", "Tipo", "Pagamento", "Status", "Valor"],
+
+    ...filteredMovements.map(m => [
+      m.id,
+      m.data_movimento,
+      m.descricao,
+      m.categoria,
+      m.pedido_id,
+      m.tipo,
+      m.forma_pagamento,
+      m.status,
+      formatDecimal(m.valor)
+    ])
+  ];
+
+  const c = data
+    .map(row =>
+      row.map(value =>
+        `"${String(value ?? "").replace(/"/g, '""')}"`
+      ).join(";")
+    )
+    .join("\r\n");
+
+  const u = URL.createObjectURL(
+    new Blob(["\ufeff" + c], {
+      type: "text/csv;charset=utf-8"
+    })
+  );
+
+  const a = document.createElement("a");
+  a.href = u;
+  a.download = `financeiro-${iso(new Date())}.csv`;
+  a.click();
+
+  URL.revokeObjectURL(u);
+}
 
   /* ---------- Init ---------- */
   document.addEventListener("DOMContentLoaded", () => {
