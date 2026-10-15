@@ -5,6 +5,7 @@ let dashboardProducts = [];
 let dashboardVariations = [];
 let dashboardMovements = [];
 let dashboardClients = [];
+let dashboardTopProducts = [];
 
 document.addEventListener("DOMContentLoaded", async () => {
 
@@ -48,7 +49,8 @@ async function loadDashboard() {
       productsResult,
       variationsResult,
       movementsResult,
-      clientsResult
+      clientsResult,
+      topProductsResult
     ] = await Promise.all([
 
       db
@@ -121,6 +123,18 @@ async function loadDashboard() {
         .eq(
           "id_loja",
           currentStore.id_loja
+        ),
+
+      db
+        .from(
+          "gestao_loja_view_produtos_vendidos"
+        )
+        .select(
+          "produto_id,produto,variacao_id,variacao,quantidade_vendida,valor_vendido"
+        )
+        .eq(
+          "id_loja",
+          currentStore.id_loja
         )
 
     ]);
@@ -160,6 +174,13 @@ async function loadDashboard() {
       );
     }
 
+    if (topProductsResult.error) {
+      console.error(
+        "Erro ao carregar produtos vendidos:",
+        topProductsResult.error
+      );
+    }
+
     dashboardOrders =
       ordersResult.data || [];
 
@@ -174,6 +195,9 @@ async function loadDashboard() {
 
     dashboardClients =
       clientsResult.data || [];
+
+    dashboardTopProducts =
+      topProductsResult.data || [];
 
     renderDashboard();
 
@@ -1097,29 +1121,6 @@ function renderStockChart() {
 
 function renderTopProducts() {
 
-  const periodOrders =
-    getOrdersInPeriod()
-      .filter(
-        order => {
-
-          const status =
-            String(
-              order.status ||
-              ""
-            )
-              .trim()
-              .toLowerCase();
-
-          return (
-            status ===
-              "confirmado" ||
-            status ===
-              "confirmada"
-          );
-
-        }
-      );
-
   const container =
     $("topProducts");
 
@@ -1127,11 +1128,14 @@ function renderTopProducts() {
     return;
   }
 
-  if (!periodOrders.length) {
+  if (
+    !dashboardTopProducts ||
+    !dashboardTopProducts.length
+  ) {
 
     container.innerHTML = `
       <div class="dashboard-empty">
-        Nenhuma venda no período.
+        Nenhuma venda registrada.
       </div>
     `;
 
@@ -1139,12 +1143,86 @@ function renderTopProducts() {
 
   }
 
-  container.innerHTML = `
-    <div class="dashboard-empty">
-      Os produtos mais vendidos serão exibidos
-      quando os itens dos pedidos forem carregados.
-    </div>
-  `;
+  const top =
+    dashboardTopProducts
+      .slice()
+      .sort(
+        (
+          a,
+          b
+        ) =>
+          Number(
+            b.quantidade_vendida ||
+            0
+          ) -
+          Number(
+            a.quantidade_vendida ||
+            0
+          )
+      )
+      .slice(
+        0,
+        5
+      );
+
+  container.innerHTML =
+    top
+      .map(
+        (
+          item,
+          index
+        ) => {
+
+          const nome =
+            item.variacao &&
+            item.variacao !==
+              "Padrão"
+              ? `${item.produto} — ${item.variacao}`
+              : item.produto;
+
+          const qtd =
+            Number(
+              item.quantidade_vendida ||
+              0
+            ).toLocaleString(
+              "pt-BR"
+            );
+
+          const receita =
+            money(
+              item.valor_vendido ||
+              0
+            );
+
+          return `
+            <div class="ranking-item">
+
+              <div class="ranking-position">
+                ${index + 1}
+              </div>
+
+              <div class="ranking-name">
+                ${escapeHtml(
+                  nome
+                )}
+                <div
+                  class="muted"
+                  style="font-size:10px;"
+                >
+                  ${receita}
+                </div>
+              </div>
+
+              <div class="ranking-quantity">
+                ${qtd} un
+              </div>
+
+            </div>
+          `;
+
+        }
+      )
+      .join("");
 
 }
 
