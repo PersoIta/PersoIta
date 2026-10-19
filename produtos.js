@@ -91,7 +91,17 @@ async function loadProducts() {
       unidade,
       origem_mercadoria,
       created_at,
-      atualizado_em
+      atualizado_em,
+      precificacao_materiais,
+      precificacao_embalagem,
+      precificacao_mao_obra,
+      precificacao_outros,
+      precificacao_taxas_percentual,
+      precificacao_impostos_percentual,
+      precificacao_despesas_percentual,
+      precificacao_margem_percentual,
+      precificacao_custo_total,
+      precificacao_preco_sugerido
     `)
     .eq("id_loja", currentStore.id_loja)
     .order("nome");
@@ -102,6 +112,158 @@ async function loadProducts() {
 
   products =
     result.data || [];
+
+}
+
+
+/* ======================================================
+   PRECIFICAÇÃO — Fórmula
+   PV = C / (1 - (D + L) / 100)
+   ====================================================== */
+
+/**
+ * Calcula custo total e preço de venda sugerido.
+ *
+ * @param {Object} dados
+ * @param {number} dados.materiais   Custo com materiais (R$)
+ * @param {number} dados.embalagem   Custo com embalagem (R$)
+ * @param {number} dados.maoObra     Custo com mão de obra (R$)
+ * @param {number} dados.outros      Outros custos (R$)
+ * @param {number} dados.taxas       Taxas (%) - ex.: maquininha
+ * @param {number} dados.impostos    Impostos (%)
+ * @param {number} dados.despesas    Despesas fixas (%)
+ * @param {number} dados.margem      Margem de lucro desejada (%)
+ * @returns {{ custoTotal: number, precoSugerido: number, divisor: number, erro: string|null }}
+ */
+function calcularPrecificacao(dados) {
+
+  const materiais = Number(dados.materiais) || 0;
+  const embalagem = Number(dados.embalagem) || 0;
+  const maoObra   = Number(dados.maoObra)   || 0;
+  const outros    = Number(dados.outros)    || 0;
+
+  const taxas    = Number(dados.taxas)    || 0;
+  const impostos = Number(dados.impostos) || 0;
+  const despesas = Number(dados.despesas) || 0;
+  const margem   = Number(dados.margem)   || 0;
+
+  const custoTotal =
+    materiais + embalagem + maoObra + outros;
+
+  const percentualTotal =
+    taxas + impostos + despesas + margem;
+
+  // Se D + L >= 100, a fórmula é inválida (divisão por zero / negativa).
+  if (percentualTotal >= 100) {
+
+    return {
+      custoTotal: Number(custoTotal.toFixed(2)),
+      precoSugerido: 0,
+      divisor: 0,
+      erro:
+        "A soma de taxas, impostos, despesas e margem " +
+        "deve ser menor que 100%. Atualmente: " +
+        percentualTotal.toFixed(2) + "%."
+    };
+
+  }
+
+  const divisor = 1 - (percentualTotal / 100);
+
+  const precoSugerido =
+    divisor > 0
+      ? custoTotal / divisor
+      : 0;
+
+  return {
+    custoTotal: Number(custoTotal.toFixed(2)),
+    precoSugerido: Number(precoSugerido.toFixed(2)),
+    divisor: Number(divisor.toFixed(4)),
+    erro: null
+  };
+
+}
+
+
+/**
+ * Lê os campos do formulário, calcula e atualiza
+ * os campos de resultado em tempo real.
+ */
+function atualizarPrecificacao() {
+
+  const getNum = (id) => {
+    const el = $(id);
+    return el ? Number(el.value) || 0 : 0;
+  };
+
+  const resultado = calcularPrecificacao({
+    materiais: getNum("prec_materiais"),
+    embalagem: getNum("prec_embalagem"),
+    maoObra:   getNum("prec_mao_obra"),
+    outros:    getNum("prec_outros"),
+    taxas:     getNum("prec_taxas"),
+    impostos:  getNum("prec_impostos"),
+    despesas:  getNum("prec_despesas"),
+    margem:    getNum("prec_margem")
+  });
+
+  const custoEl = $("prec_custo_total");
+  const precoEl = $("prec_preco_sugerido");
+  const avisoEl = $("prec_aviso");
+
+  if (custoEl) {
+    custoEl.value =
+      resultado.custoTotal.toFixed(2);
+  }
+
+  if (precoEl) {
+    precoEl.value =
+      resultado.precoSugerido.toFixed(2);
+  }
+
+  if (avisoEl) {
+
+    if (resultado.erro) {
+      avisoEl.textContent = "⚠ " + resultado.erro;
+      avisoEl.style.color = "#c0392b";
+    } else {
+      avisoEl.textContent =
+        "Divisor aplicado: " +
+        resultado.divisor +
+        "  •  PV = C / (1 − (D + L) / 100)";
+      avisoEl.style.color = "#666";
+    }
+
+  }
+
+  // Botão para aplicar o preço sugerido em "Preço de venda"
+  const btn = $("prec_aplicar");
+  if (btn) {
+    btn.disabled = !!resultado.erro ||
+      resultado.precoSugerido <= 0;
+  }
+
+}
+
+
+/**
+ * Copia o preço sugerido para o campo "Preço de venda".
+ */
+function aplicarPrecoSugerido() {
+
+  const sugerido = $("prec_preco_sugerido");
+  const preco    = $("p_preco");
+
+  if (!sugerido || !preco) return;
+
+  const valor = Number(sugerido.value) || 0;
+
+  if (valor <= 0) {
+    alert("Calcule a precificação antes de aplicar.");
+    return;
+  }
+
+  preco.value = valor.toFixed(2);
 
 }
 
@@ -490,6 +652,20 @@ function productForm(p = {}) {
 
     }).join("");
 
+  // Valores de precificação (defaults vindos do banco / novos produtos)
+  const prec = {
+    materiais: p.precificacao_materiais ?? 0,
+    embalagem: p.precificacao_embalagem ?? 0,
+    maoObra:   p.precificacao_mao_obra   ?? 0,
+    outros:    p.precificacao_outros     ?? 0,
+    taxas:     p.precificacao_taxas_percentual    ?? 0,
+    impostos:  p.precificacao_impostos_percentual ?? 0,
+    despesas:  p.precificacao_despesas_percentual ?? 0,
+    margem:    p.precificacao_margem_percentual   ?? 30,
+    custoTotal: p.precificacao_custo_total    ?? 0,
+    precoSugerido: p.precificacao_preco_sugerido ?? 0
+  };
+
   return `
 
     <form
@@ -648,6 +824,197 @@ function productForm(p = {}) {
 
       </div>
 
+      <!-- ===== PRECIFICAÇÃO ===== -->
+
+      <div
+        style="
+          margin-top:20px;
+          padding-top:15px;
+          border-top:1px solid #ddd;
+        "
+      >
+
+        <strong>
+          Precificação do produto
+        </strong>
+
+        <div
+          class="muted"
+          style="
+            font-size:12px;
+            margin-top:4px;
+            margin-bottom:12px;
+          "
+        >
+          Fórmula aplicada:
+          <code>PV = C / (1 − (D + L) / 100)</code>
+          — onde <b>C</b> = soma dos custos,
+          <b>D</b> = despesas percentuais e
+          <b>L</b> = margem de lucro.
+        </div>
+
+        <div class="grid2">
+
+          <div>
+            <label>Materiais (R$)</label>
+            <input
+              id="prec_materiais"
+              type="number"
+              step="0.01"
+              min="0"
+              value="${prec.materiais}"
+              oninput="atualizarPrecificacao()">
+          </div>
+
+          <div>
+            <label>Embalagem (R$)</label>
+            <input
+              id="prec_embalagem"
+              type="number"
+              step="0.01"
+              min="0"
+              value="${prec.embalagem}"
+              oninput="atualizarPrecificacao()">
+          </div>
+
+        </div>
+
+        <div class="grid2">
+
+          <div>
+            <label>Mão de obra (R$)</label>
+            <input
+              id="prec_mao_obra"
+              type="number"
+              step="0.01"
+              min="0"
+              value="${prec.maoObra}"
+              oninput="atualizarPrecificacao()">
+          </div>
+
+          <div>
+            <label>Outros custos (R$)</label>
+            <input
+              id="prec_outros"
+              type="number"
+              step="0.01"
+              min="0"
+              value="${prec.outros}"
+              oninput="atualizarPrecificacao()">
+          </div>
+
+        </div>
+
+        <div class="grid2">
+
+          <div>
+            <label>Taxas (%)</label>
+            <input
+              id="prec_taxas"
+              type="number"
+              step="0.001"
+              min="0"
+              max="100"
+              value="${prec.taxas}"
+              oninput="atualizarPrecificacao()">
+            <small class="muted">
+              Ex.: maquininha, gateway, comissão.
+            </small>
+          </div>
+
+          <div>
+            <label>Impostos (%)</label>
+            <input
+              id="prec_impostos"
+              type="number"
+              step="0.001"
+              min="0"
+              max="100"
+              value="${prec.impostos}"
+              oninput="atualizarPrecificacao()">
+          </div>
+
+        </div>
+
+        <div class="grid2">
+
+          <div>
+            <label>Despesas fixas rateadas (%)</label>
+            <input
+              id="prec_despesas"
+              type="number"
+              step="0.001"
+              min="0"
+              max="100"
+              value="${prec.despesas}"
+              oninput="atualizarPrecificacao()">
+            <small class="muted">
+              Aluguel, salários etc. rateados.
+            </small>
+          </div>
+
+          <div>
+            <label>Margem de lucro desejada (%)</label>
+            <input
+              id="prec_margem"
+              type="number"
+              step="0.001"
+              min="0"
+              max="100"
+              value="${prec.margem}"
+              oninput="atualizarPrecificacao()">
+          </div>
+
+        </div>
+
+        <div
+          id="prec_aviso"
+          class="muted"
+          style="
+            font-size:12px;
+            margin:8px 0 12px;
+          "
+        ></div>
+
+        <div class="grid2">
+
+          <div>
+            <label>Custo total (R$)</label>
+            <input
+              id="prec_custo_total"
+              type="number"
+              step="0.01"
+              readonly
+              value="${Number(prec.custoTotal).toFixed(2)}">
+          </div>
+
+          <div>
+            <label>Preço de venda sugerido (R$)</label>
+            <input
+              id="prec_preco_sugerido"
+              type="number"
+              step="0.01"
+              readonly
+              value="${Number(prec.precoSugerido).toFixed(2)}">
+          </div>
+
+        </div>
+
+        <button
+          id="prec_aplicar"
+          type="button"
+          class="btn btn-secondary"
+          onclick="aplicarPrecoSugerido()"
+          style="margin-top:8px;">
+
+          Aplicar preço sugerido em "Preço de venda"
+
+        </button>
+
+      </div>
+
+      <!-- ===== FIM PRECIFICAÇÃO ===== -->
+
       <!-- ===== DADOS FISCAIS (NF-e) ===== -->
 
       <div
@@ -687,7 +1054,7 @@ function productForm(p = {}) {
               value="${escapeHtml(
                 p.ncm || ""
               )}"
-              oninput="this.value = this.value.replace(/\D/g, '').slice(0,8)">
+              oninput="this.value = this.value.replace(/\\D/g, '').slice(0,8)">
 
             <small class="muted">
               8 dígitos, sem pontos
@@ -706,7 +1073,7 @@ function productForm(p = {}) {
               value="${escapeHtml(
                 p.cfop || "5102"
               )}"
-              oninput="this.value = this.value.replace(/\D/g, '').slice(0,4)">
+              oninput="this.value = this.value.replace(/\\D/g, '').slice(0,4)">
 
           </div>
 
@@ -725,7 +1092,7 @@ function productForm(p = {}) {
               value="${escapeHtml(
                 p.cest || ""
               )}"
-              oninput="this.value = this.value.replace(/\D/g, '').slice(0,7)">
+              oninput="this.value = this.value.replace(/\\D/g, '').slice(0,7)">
 
             <small class="muted">
               Opcional (substituição tributária)
@@ -973,9 +1340,13 @@ function newProduct() {
       exibir_preco_catalogo: true,
       cfop: "5102",
       unidade: "UN",
-      origem_mercadoria: "0"
+      origem_mercadoria: "0",
+      precificacao_margem_percentual: 30
     })
   );
+
+  // Calcula precificação inicial (caso os campos já venham preenchidos)
+  atualizarPrecificacao();
 
 }
 
@@ -1004,6 +1375,9 @@ function editProduct(id) {
     "Editar produto",
     productForm(p)
   );
+
+  // Recalcula com base nos dados salvos
+  atualizarPrecificacao();
 
 }
 
@@ -1044,6 +1418,31 @@ async function saveProduct(ev, id) {
     alert(
       "O NCM deve ter exatamente 8 dígitos.\n\n" +
       "Valor informado: " + ncmValue
+    );
+
+    return;
+
+  }
+
+  // Recalcula a precificação para garantir consistência
+  atualizarPrecificacao();
+
+  const precResultado = calcularPrecificacao({
+    materiais: Number($("prec_materiais").value) || 0,
+    embalagem: Number($("prec_embalagem").value) || 0,
+    maoObra:   Number($("prec_mao_obra").value)   || 0,
+    outros:    Number($("prec_outros").value)     || 0,
+    taxas:     Number($("prec_taxas").value)      || 0,
+    impostos:  Number($("prec_impostos").value)   || 0,
+    despesas:  Number($("prec_despesas").value)   || 0,
+    margem:    Number($("prec_margem").value)     || 0
+  });
+
+  if (precResultado.erro) {
+
+    alert(
+      "Não foi possível calcular a precificação:\n\n" +
+      precResultado.erro
     );
 
     return;
@@ -1103,7 +1502,38 @@ async function saveProduct(ev, id) {
       $("p_preco_catalogo").checked,
 
     observacoes:
-      $("p_observacoes").value.trim() || null
+      $("p_observacoes").value.trim() || null,
+
+    // ===== PRECIFICAÇÃO =====
+    precificacao_materiais:
+      Number($("prec_materiais").value) || 0,
+
+    precificacao_embalagem:
+      Number($("prec_embalagem").value) || 0,
+
+    precificacao_mao_obra:
+      Number($("prec_mao_obra").value) || 0,
+
+    precificacao_outros:
+      Number($("prec_outros").value) || 0,
+
+    precificacao_taxas_percentual:
+      Number($("prec_taxas").value) || 0,
+
+    precificacao_impostos_percentual:
+      Number($("prec_impostos").value) || 0,
+
+    precificacao_despesas_percentual:
+      Number($("prec_despesas").value) || 0,
+
+    precificacao_margem_percentual:
+      Number($("prec_margem").value) || 0,
+
+    precificacao_custo_total:
+      precResultado.custoTotal,
+
+    precificacao_preco_sugerido:
+      precResultado.precoSugerido
 
   };
 
