@@ -1553,6 +1553,7 @@ async function saveProduct(ev, id) {
         produtoAtual?.sku ||
         generateSku(nomeProduto, id);
 
+      // 1. Atualiza o produto
       result = await db
         .from("gestao_loja_produtos")
         .update(payload)
@@ -1561,6 +1562,32 @@ async function saveProduct(ev, id) {
 
       if (result.error) {
         throw result.error;
+      }
+
+      // 2. ATUALIZA AS VARIAÇÕES VINCULADAS A ESTE PRODUTO
+      // (Repassa custo, venda, impostos e dados fiscais)
+      const { error: variacoesError } = await db
+        .from("gestao_loja_produtos_variacoes")
+        .update({
+          preco_custo: payload.preco_custo,
+          preco_venda: payload.preco_venda,
+          ncm: payload.ncm,
+          cfop: payload.cfop,
+          cest: payload.cest,
+          unidade: payload.unidade,
+          origem_mercadoria: payload.origem_mercadoria
+        })
+        .eq("produto_id", id)
+        .eq("id_loja", currentStore.id_loja);
+
+      if (variacoesError) {
+        console.error("Erro ao atualizar variações:", variacoesError);
+        // Avisa o usuário, mas não cancela o salvamento do produto, 
+        // pois o produto em si já foi salvo.
+        alert(
+          "O produto foi salvo, mas ocorreu um erro ao atualizar as variações:\n" +
+          variacoesError.message
+        );
       }
 
     } else {
