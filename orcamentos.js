@@ -133,6 +133,39 @@ function getIndicadorIeLabel(value) {
 
 
 /* ======================================================
+   HELPERS DE TIPO DE ENTREGA
+   ====================================================== */
+
+function isRetiradaQuote(quote) {
+
+  if (!quote) {
+    return false;
+  }
+
+  if (String(quote.tipo_entrega || "").toLowerCase() === "retirada") {
+    return true;
+  }
+
+  return (
+    String(quote.endereco_entrega || "")
+      .trim()
+      .toLowerCase() === "retirada na loja"
+  );
+
+}
+
+function getTipoEntregaQuoteFromForm() {
+
+  const selected = document.querySelector(
+    'input[name="tipo_entrega_quote"]:checked'
+  );
+
+  return selected ? selected.value : "entrega";
+
+}
+
+
+/* ======================================================
    CARREGAMENTOS
    ====================================================== */
 
@@ -1105,6 +1138,51 @@ function buildQuoteForm() {
 
     <div
       style="
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+        padding: 15px;
+        background: #f8f9fa;
+        border: 1px solid #e5e8ed;
+        border-radius: 8px;
+      "
+    >
+
+      <strong style="font-size: 13px; color: #555d6d;">
+        Tipo de entrega:
+      </strong>
+
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; margin: 0;">
+        <input
+          type="radio"
+          name="tipo_entrega_quote"
+          value="entrega"
+          checked
+          onchange="changeTipoEntregaQuote(this.value)"
+          style="margin: 0; width: 16px; height: 16px;"
+        >
+        Entrega no endereço
+      </label>
+
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; margin: 0;">
+        <input
+          type="radio"
+          name="tipo_entrega_quote"
+          value="retirada"
+          onchange="changeTipoEntregaQuote(this.value)"
+          style="margin: 0; width: 16px; height: 16px;"
+        >
+        Retirada na loja
+      </label>
+
+    </div>
+
+
+    <div
+      id="quoteAddressBlock"
+      style="
         margin-top:20px;
         padding:15px;
         border:1px solid #ddd;
@@ -1553,6 +1631,32 @@ function buildQuoteForm() {
 
 }
 
+function changeTipoEntregaQuote(tipo) {
+
+  const enderecoBlock =
+    document.getElementById("quoteAddressBlock");
+
+  const freteInput =
+    document.getElementById("quoteFreight");
+
+  if (enderecoBlock) {
+    enderecoBlock.style.display =
+      tipo === "retirada" ? "none" : "block";
+  }
+
+  if (freteInput) {
+    if (tipo === "retirada") {
+      freteInput.value = "0";
+      freteInput.disabled = true;
+    } else {
+      freteInput.disabled = false;
+    }
+  }
+
+  updateQuoteSummary();
+
+}
+
 function openNewQuote() {
 
   editingQuoteId = null;
@@ -1577,6 +1681,8 @@ function openNewQuote() {
   document.getElementById(
     "quoteDate"
   ).value = getQuoteToday();
+
+  changeTipoEntregaQuote("entrega");
 
   renderQuoteItems();
   updateQuoteSummary();
@@ -1616,6 +1722,13 @@ function changeQuoteClient(clientId) {
 
     return;
 
+  }
+
+  // Só preenche se NÃO for retirada
+  const tipo = getTipoEntregaQuoteFromForm();
+
+  if (tipo === "retirada") {
+    return;
   }
 
   document.getElementById("quoteCep").value =
@@ -2068,6 +2181,12 @@ function updateQuoteSummary() {
 
 function getQuoteDeliveryAddress() {
 
+  const tipo = getTipoEntregaQuoteFromForm();
+
+  if (tipo === "retirada") {
+    return "Retirada na loja";
+  }
+
   const cep =
     document.getElementById("quoteCep")?.value.trim() || "";
 
@@ -2201,6 +2320,8 @@ async function saveQuote() {
       document.getElementById("quoteDate").value,
 
     status: "Orçamento",
+
+    tipo_entrega: getTipoEntregaQuoteFromForm(),
 
     subtotal: subtotalFinal,
     desconto: descontoFinal,
@@ -2669,22 +2790,46 @@ async function viewQuote(quoteId) {
     </div>
 
 
-    <div class="card" style="margin-top:20px;">
+    ${
+      isRetiradaQuote(quote)
+        ? `
+          <div
+            class="card"
+            style="
+              margin-top:20px;
+              border-left:4px solid #5145cd;
+              background:#f5f3ff;
+            "
+          >
+            <h3 style="margin-top:0;">
+              🏬 Retirada na loja
+            </h3>
 
-      <h3>
-        Endereço de entrega
-      </h3>
+            <p class="muted" style="margin:8px 0 0;">
+              Este orçamento será retirado diretamente no estabelecimento.
+              Não há endereço de entrega nem frete.
+            </p>
+          </div>
+        `
+        : `
+          <div class="card" style="margin-top:20px;">
 
-      <div
-        style="
-          white-space:pre-wrap;
-          margin-top:10px;
-        "
-      >
-        ${escapeHtml(quote.endereco_entrega || "Endereço não informado.")}
-      </div>
+            <h3>
+              Endereço de entrega
+            </h3>
 
-    </div>
+            <div
+              style="
+                white-space:pre-wrap;
+                margin-top:10px;
+              "
+            >
+              ${escapeHtml(quote.endereco_entrega || "Endereço não informado.")}
+            </div>
+
+          </div>
+        `
+    }
 
 
     <div
@@ -2952,6 +3097,21 @@ async function editQuote(quoteId) {
   document.getElementById("quoteNotes").value =
     quote.observacoes || "";
 
+  // Tipo de entrega
+  const tipoEntrega =
+    quote.tipo_entrega ||
+    (isRetiradaQuote(quote) ? "retirada" : "entrega");
+
+  const radioTipo = document.querySelector(
+    `input[name="tipo_entrega_quote"][value="${tipoEntrega}"]`
+  );
+
+  if (radioTipo) {
+    radioTipo.checked = true;
+  }
+
+  changeTipoEntregaQuote(tipoEntrega);
+
   changeQuoteClient(quote.cliente_id);
 
   renderQuoteItems();
@@ -3107,6 +3267,8 @@ async function generateQuotePDF(quoteId) {
   const client = quote.gestao_loja_clientes;
 
   const isPJ = isPessoaJuridica(client?.tipo_cliente);
+
+  const quoteRetirada = isRetiradaQuote(quote);
 
   const storeName = escapeHtml(
     currentStore?.nome_fantasia ||
@@ -3399,15 +3561,34 @@ async function generateQuotePDF(quoteId) {
       </div>
 
 
-      <div class="section">
+      ${
+        quoteRetirada
+          ? `
+            <div class="section">
 
-        <div class="section-title">
-          Endereço de entrega
-        </div>
+              <div class="section-title">
+                Tipo de entrega
+              </div>
 
-        <div>${address}</div>
+              <div style="padding:10px;background:#f5f3ff;border-radius:6px;">
+                <strong>RETIRADA NA LOJA</strong><br>
+                <small>Este orçamento não possui endereço de entrega nem frete.</small>
+              </div>
 
-      </div>
+            </div>
+          `
+          : `
+            <div class="section">
+
+              <div class="section-title">
+                Endereço de entrega
+              </div>
+
+              <div>${address}</div>
+
+            </div>
+          `
+      }
 
 
       <div class="section">
