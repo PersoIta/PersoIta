@@ -310,14 +310,12 @@ textarea:focus {
 ============================== */
 
 .logout {
-    position: absolute;
-
-    bottom: 20px;
-    left: 14px;
-    right: 14px;
-
-    /* Mantém o botão acima do final da tela */
+    /* Removido o position: absolute */
+    margin-top: 15px;
+    
+    /* Mantém o botão fixo na parte inferior, fora da área de rolagem */
     flex-shrink: 0;
+    width: 100%;
 }
 
 /* ==============================
@@ -580,8 +578,8 @@ th {
     }
 
     .logout {
-        left: 8px;
-        right: 8px;
+        width: 100%;
+        padding: 11px 4px;
         font-size: 0;
     }
 
