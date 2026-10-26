@@ -3,16 +3,15 @@
    Troque somente estes dois valores.
    Use a chave ANON/PUBLISHABLE, NUNCA service_role.
    ========================================================= */
-const SUPABASE_URL = "https://tzolokxetilunyfzovav.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_0HJWnbqDMg1LFwLuhaRLDg_FvEXwxZd";
 const { createClient } = supabase;
 const db = createClient(
-  SUPABASE_URL,
+  SUPABASE_URL,        // ← vem do config.js
   SUPABASE_ANON_KEY
 );
 
 let currentUser = null;
 let currentStore = null;
+// ...resto do arquivo igual...
 
 /* =========================================================
    HELPER: loja matriz (id_loja = 1)
