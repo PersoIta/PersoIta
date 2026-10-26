@@ -8,7 +8,9 @@ const SUPABASE_ANON_KEY = "sb_publishable_0HJWnbqDMg1LFwLuhaRLDg_FvEXwxZd";
 /* =========================================================
    CREDENCIAIS DO SUPABASE (ÚNICO LUGAR)
    ⚠️ Substitua pelos valores reais do seu projeto.
-   NÃO declare estas variáveis em outro arquivo (config.js).
+   NÃO declare estas variáveis em outro arquivo (config.js),
+   para evitar o erro "Identifier 'SUPABASE_URL' has already
+   been declared".
    ========================================================= */
 
 /* =========================================================
@@ -108,6 +110,9 @@ function closeModal() {
   if (modal) modal.classList.add("hidden");
 }
 
+/* =========================================================
+   LOGIN
+   ========================================================= */
 async function login() {
   const loginForm = $("loginForm");
   if (!loginForm) return;
@@ -158,19 +163,24 @@ async function login() {
   });
 }
 
+/* =========================================================
+   AUTH
+   ========================================================= */
 async function requireAuth() {
   try {
     const result = await db.auth.getSession();
 
     if (result.error) {
       console.error("Erro ao verificar sessão:", result.error);
-      window.location.replace("index.html");
+      // Preserva query string (importante para não perder ?token=)
+      window.location.replace("index.html" + window.location.search);
       return false;
     }
 
     const session = result.data.session;
     if (!session) {
-      window.location.replace("index.html");
+      // Preserva query string
+      window.location.replace("index.html" + window.location.search);
       return false;
     }
 
@@ -179,7 +189,8 @@ async function requireAuth() {
 
   } catch (error) {
     console.error("Erro ao verificar autenticação:", error);
-    window.location.replace("index.html");
+    // Preserva query string
+    window.location.replace("index.html" + window.location.search);
     return false;
   }
 }
@@ -190,9 +201,13 @@ async function logout() {
   } catch (error) {
     console.error("Erro ao sair:", error);
   }
-  window.location.replace("index.html");
+  // Preserva query string
+  window.location.replace("index.html" + window.location.search);
 }
 
+/* =========================================================
+   CONTEXTO DO USUÁRIO / LOJA
+   ========================================================= */
 async function loadUserContext() {
   if (!currentUser) {
     console.error("loadUserContext: currentUser não existe.");
@@ -283,6 +298,9 @@ async function loadUserContext() {
   }
 }
 
+/* =========================================================
+   MENU
+   ========================================================= */
 async function loadMenu() {
   const menu = $("menu");
   if (!menu) return;
@@ -314,6 +332,9 @@ function setActiveNav() {
   });
 }
 
+/* =========================================================
+   DASHBOARD
+   ========================================================= */
 async function initDashboard() {
   const authenticated = await requireAuth();
   if (!authenticated) return;
@@ -361,7 +382,15 @@ async function initDashboard() {
   }
 }
 
-const PUBLIC_PAGES = ["catalogo"];
+/* =========================================================
+   PÁGINAS PÚBLICAS
+   "cadastro" também é pública: NÃO exige auth (é para quem
+   ainda não tem conta). Só mostra o menu SE houver sessão.
+   ========================================================= */
+const PUBLIC_PAGES = [
+  "catalogo",
+  "cadastro"
+];
 
 function isPublicPage() {
   const page = document.body.dataset.page;
@@ -414,26 +443,46 @@ async function initPublicPage() {
   }
 }
 
+/* =========================================================
+   INICIALIZAÇÃO POR PÁGINA
+   Ordem de decisão:
+   1) index.html (login) → só login, sem auth
+   2) cadastro.html → NÃO exige auth (página pública)
+   3) catálogo → auth opcional (só carrega menu se logado)
+   4) dashboard → auth obrigatório
+   5) demais → auth obrigatório
+   ========================================================= */
 document.addEventListener("DOMContentLoaded", async function () {
 
+  // 1) Página de login
   const loginForm = $("loginForm");
-  const isLoginPage = !!loginForm;
-
-  if (isLoginPage) {
+  if (!!loginForm) {
     login();
     return;
   }
 
+  // 2) Página de cadastro → NUNCA exige auth
+  if (
+    document.body.dataset.page === "cadastro" ||
+    window.location.pathname.endsWith("/cadastro.html")
+  ) {
+    console.log("[app] Página de cadastro — não exige auth.");
+    return;
+  }
+
+  // 3) Páginas públicas (catálogo) → auth opcional
   if (isPublicPage()) {
     await initPublicPage();
     return;
   }
 
+  // 4) Dashboard → auth obrigatório
   if (document.body.dataset.page === "dashboard") {
     await initDashboard();
     return;
   }
 
+  // 5) Demais páginas protegidas → auth obrigatório
   const authenticated = await requireAuth();
   if (!authenticated) return;
 
