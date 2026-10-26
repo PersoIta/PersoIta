@@ -3,11 +3,14 @@ let categories = [];
 
 
 /*
- * Gera um SKU único no formato:
- *   SKU-YYYYMMDDHHMMSS-XXX
- * Ex.: SKU-20251008143022-472
+ * Gera um SKU único por loja no formato:
+ *   PREFIXO-NNNNN
+ * Ex.: CAM-00001
+ *
+ * O número é a sequência DENTRO da loja,
+ * começando em 1 para cada loja.
  */
-function generateSku(nomeProduto, idProduto) {
+function generateSku(nomeProduto, sequencia) {
 
   const nome =
     String(nomeProduto || "")
@@ -35,9 +38,34 @@ function generateSku(nomeProduto, idProduto) {
       : nome.substring(0, 3) || "PRO";
 
   const numero =
-    String(idProduto).padStart(5, "0");
+    String(sequencia).padStart(5, "0");
 
   return `${prefixo}-${numero}`;
+}
+
+
+/*
+ * Retorna a próxima sequência de SKU para a loja atual.
+ * Conta quantos produtos a loja já tem e soma 1.
+ *
+ * Como não há exclusão de produtos, a sequência
+ * nunca volta e nunca colide.
+ */
+async function proximaSequenciaSku() {
+
+  const result = await db
+    .from("gestao_loja_produtos")
+    .select("id", { count: "exact", head: true })
+    .eq("id_loja", currentStore.id_loja);
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  const total = result.count || 0;
+
+  return total + 1;
+
 }
 
 
@@ -1543,15 +1571,22 @@ async function saveProduct(ev, id) {
 
     if (id) {
 
-      // Edição: preserva o SKU existente.
+      // ===== EDIÇÃO =====
+      // Preserva o SKU existente do produto.
       const produtoAtual =
         products.find(
           p => String(p.id) === String(id)
         );
 
       payload.sku =
-        produtoAtual?.sku ||
-        generateSku(nomeProduto, id);
+        produtoAtual?.sku || null;
+
+      // Se por algum motivo o produto estiver sem SKU,
+      // gera um novo usando a sequência da loja.
+      if (!payload.sku) {
+        const sequencia = await proximaSequenciaSku();
+        payload.sku = generateSku(nomeProduto, sequencia);
+      }
 
       // 1. Atualiza o produto
       result = await db
@@ -1582,7 +1617,7 @@ async function saveProduct(ev, id) {
 
       if (variacoesError) {
         console.error("Erro ao atualizar variações:", variacoesError);
-        // Avisa o usuário, mas não cancela o salvamento do produto, 
+        // Avisa o usuário, mas não cancela o salvamento do produto,
         // pois o produto em si já foi salvo.
         alert(
           "O produto foi salvo, mas ocorreu um erro ao atualizar as variações:\n" +
@@ -1592,42 +1627,25 @@ async function saveProduct(ev, id) {
 
     } else {
 
-      // Cadastro: cria primeiro o produto para obter seu ID.
+      // ===== CADASTRO NOVO =====
+      // Calcula a sequência DENTRO da loja atual (começa em 1)
+      const sequencia = await proximaSequenciaSku();
+
+      // Gera o SKU já com a sequência correta da loja
+      const sku = generateSku(nomeProduto, sequencia);
+
+      // Insere o produto já com o SKU definitivo
       result = await db
         .from("gestao_loja_produtos")
         .insert({
           ...payload,
-          sku: "PENDENTE"
+          sku
         })
         .select("id")
         .single();
 
       if (result.error) {
         throw result.error;
-      }
-
-      const idProduto =
-        result.data.id;
-
-      // Gera o SKU usando o nome e o ID real.
-      const sku =
-        generateSku(nomeProduto, idProduto);
-
-      // Atualiza o registro com o SKU definitivo.
-      const atualizacao = await db
-        .from("gestao_loja_produtos")
-        .update({ sku })
-        .eq("id", idProduto)
-        .eq("id_loja", currentStore.id_loja);
-
-      if (atualizacao.error) {
-
-        throw new Error(
-          "O produto foi cadastrado, mas não foi possível " +
-          "atualizar o SKU. ID do produto: " + idProduto +
-          ". Erro: " + atualizacao.error.message
-        );
-
       }
 
     }

@@ -124,6 +124,19 @@
       border: 1px dashed #ddd;
       border-radius: 8px;
     }
+
+    .tag-global {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 4px;
+      background: #ede9fe;
+      color: #5145cd;
+      font-size: 11px;
+      font-weight: 700;
+      margin-left: 8px;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+    }
   </style>
 </head>
 
@@ -169,6 +182,15 @@
             onclick="switchTab('consulta')"
           >
             Consultar configurações
+          </button>
+
+          <button
+            type="button"
+            id="tabGlobais"
+            class="maquinas-tab"
+            onclick="switchTab('globais')"
+          >
+            Configurações gerais
           </button>
 
         </div>
@@ -222,6 +244,41 @@
             </div>
 
             <div id="consultaList">
+              <div class="consulta-vazio">
+                Carregando...
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- ABA CONFIGURAÇÕES GERAIS -->
+
+        <div id="viewGlobais" style="display:none;">
+
+          <div class="section">
+
+            <div class="section-head">
+              <h2>Configurações gerais (loja matriz)</h2>
+            </div>
+
+            <div class="muted" style="margin-bottom:15px;">
+              Configurações compartilhadas pela matriz, disponíveis para todas as lojas.
+            </div>
+
+            <div class="maquinas-consulta-toolbar">
+
+              <input
+                type="text"
+                id="globaisBusca"
+                placeholder="Buscar por produto, prensa, material..."
+                oninput="renderGlobais()"
+              >
+
+            </div>
+
+            <div id="globaisList">
               <div class="consulta-vazio">
                 Carregando...
               </div>

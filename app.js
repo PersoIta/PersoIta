@@ -14,6 +14,16 @@ const db = createClient(
 let currentUser = null;
 let currentStore = null;
 
+/* =========================================================
+   HELPER: loja matriz (id_loja = 1)
+   ========================================================= */
+function isLojaMatriz() {
+  return (
+    currentStore &&
+    Number(currentStore.id_loja) === 1
+  );
+}
+
 window.db = db;
 
 function $(id) {
@@ -471,48 +481,49 @@ async function loadUserContext() {
 }
 
 async function loadMenu() {
-  const menu =
-    $("menu");
+  const menu = $("menu");
 
   if (!menu) {
     return;
   }
 
   try {
-    const response =
-      await fetch(
-        "menu.html",
-        {
-          cache: "no-cache"
-        }
-      );
+    const response = await fetch("menu.html", {
+      cache: "no-cache"
+    });
 
     if (!response.ok) {
-      throw new Error(
-        "Não foi possível carregar o menu."
-      );
+      throw new Error("Não foi possível carregar o menu.");
     }
 
-    menu.innerHTML =
-      await response.text();
+    menu.innerHTML = await response.text();
 
-    if (
-      currentStore &&
-      $("storeName")
-    ) {
+    if (currentStore && $("storeName")) {
       $("storeName").textContent =
         currentStore.nome_fantasia ||
         currentStore.nome ||
         "Loja";
     }
 
+    // =========================================================
+    // MENU CONDICIONAL: item "Convites" só para a loja matriz
+    // =========================================================
+    const convitesNav = menu.querySelector(
+      '[data-page="convites"]'
+    );
+
+    if (convitesNav) {
+      if (isLojaMatriz()) {
+        convitesNav.style.display = "";
+      } else {
+        convitesNav.style.display = "none";
+      }
+    }
+
     setActiveNav();
 
   } catch (error) {
-    console.error(
-      "Erro ao carregar menu:",
-      error
-    );
+    console.error("Erro ao carregar menu:", error);
   }
 }
 

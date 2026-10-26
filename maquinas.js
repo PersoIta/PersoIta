@@ -5,12 +5,16 @@
 let machines = [];
 let machineConfigs = [];
 let allConfigs = [];
+let allGlobalConfigs = [];
 
 let currentMachine = null;
 let editingMachineId = null;
 let editingConfigId = null;
 
 let currentTab = "maquinas";
+
+/* ID da loja matriz (global) */
+const LOJA_MATRIZ_ID = 1;
 
 /* ============================================
    HELPERS
@@ -38,6 +42,14 @@ function normalizeSearch(value) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+/* Retorna true se o usuário atual pertence à loja matriz */
+function isLojaMatriz() {
+  return (
+    currentStore &&
+    Number(currentStore.id_loja) === LOJA_MATRIZ_ID
+  );
+}
+
 /* ============================================
    TABS
    ============================================ */
@@ -47,22 +59,34 @@ function switchTab(tab) {
 
   const tabMaquinas = document.getElementById("tabMaquinas");
   const tabConsulta = document.getElementById("tabConsulta");
+  const tabGlobais = document.getElementById("tabGlobais");
+
   const viewMaquinas = document.getElementById("viewMaquinas");
   const viewConsulta = document.getElementById("viewConsulta");
+  const viewGlobais = document.getElementById("viewGlobais");
+
+  // Remove active de todas
+  tabMaquinas?.classList.remove("active");
+  tabConsulta?.classList.remove("active");
+  tabGlobais?.classList.remove("active");
+
+  // Esconde todas as views
+  if (viewMaquinas) viewMaquinas.style.display = "none";
+  if (viewConsulta) viewConsulta.style.display = "none";
+  if (viewGlobais) viewGlobais.style.display = "none";
 
   if (tab === "consulta") {
-    tabMaquinas?.classList.remove("active");
     tabConsulta?.classList.add("active");
-
-    if (viewMaquinas) viewMaquinas.style.display = "none";
     if (viewConsulta) viewConsulta.style.display = "";
 
     loadAllConfigs();
-  } else {
-    tabConsulta?.classList.remove("active");
-    tabMaquinas?.classList.add("active");
+  } else if (tab === "globais") {
+    tabGlobais?.classList.add("active");
+    if (viewGlobais) viewGlobais.style.display = "";
 
-    if (viewConsulta) viewConsulta.style.display = "none";
+    loadGlobalConfigs();
+  } else {
+    tabMaquinas?.classList.add("active");
     if (viewMaquinas) viewMaquinas.style.display = "";
 
     renderMachines();
@@ -138,6 +162,54 @@ async function loadAllConfigs() {
   allConfigs = data || [];
 
   renderConsulta();
+}
+
+/*
+ * Carrega SOMENTE as configurações globais:
+ *   - pertencem à loja matriz (id_loja = 1)
+ *   - têm a flag global = true
+ */
+async function loadGlobalConfigs() {
+  const container = document.getElementById("globaisList");
+
+  if (container) {
+    container.innerHTML = `
+      <div class="consulta-vazio">
+        Carregando...
+      </div>
+    `;
+  }
+
+  const { data, error } = await db
+    .from("gestao_loja_maquinas_configuracoes")
+    .select(`
+      *,
+      gestao_loja_maquinas (
+        id,
+        nome,
+        tipo,
+        marca,
+        modelo
+      )
+    `)
+    .eq("id_loja", LOJA_MATRIZ_ID)
+    .eq("global", true)
+    .order("nome");
+
+  if (error) {
+    if (container) {
+      container.innerHTML = `
+        <div class="message error">
+          ${escapeHtml(error.message)}
+        </div>
+      `;
+    }
+    return;
+  }
+
+  allGlobalConfigs = data || [];
+
+  renderGlobais();
 }
 
 /* ============================================
@@ -245,7 +317,7 @@ async function renderMachines() {
 }
 
 /* ============================================
-   RENDER — CONSULTA (todas as configs)
+   RENDER — CONSULTA (configs da própria loja)
    ============================================ */
 
 function renderConsulta() {
@@ -291,127 +363,188 @@ function renderConsulta() {
     .map(function (c) {
       const m = c.gestao_loja_maquinas;
 
-      return `
-        <div class="consulta-card">
-
-          <div
-            style="
-              display:flex;
-              justify-content:space-between;
-              align-items:flex-start;
-              gap:10px;
-              flex-wrap:wrap;
-            "
-          >
-
-            <div>
-              <div class="consulta-card-title">
-                ${escapeHtml(c.nome)}
-              </div>
-
-              ${c.prensa
-                ? `<div class="consulta-card-prensa">
-                     Prensa: ${escapeHtml(c.prensa)}
-                   </div>`
-                : ""}
-            </div>
-
-            ${m
-              ? `<span class="consulta-maquina-tag">
-                   ${escapeHtml(m.nome)}
-                 </span>`
-              : ""}
-
-          </div>
-
-          <div class="consulta-grid">
-
-            ${
-              c.material
-                ? `
-                  <div>
-                    <div class="consulta-field-label">
-                      Produto
-                    </div>
-                    <div class="consulta-field-value">
-                      ${escapeHtml(c.material)}
-                    </div>
-                  </div>
-                `
-                : ""
-            }
-
-            ${
-              c.temperatura !== null &&
-              c.temperatura !== undefined
-                ? `
-                  <div>
-                    <div class="consulta-field-label">
-                      Temperatura
-                    </div>
-                    <div class="consulta-field-value">
-                      ${machineNumber(c.temperatura)} °C
-                    </div>
-                  </div>
-                `
-                : ""
-            }
-
-            ${
-              c.tempo !== null &&
-              c.tempo !== undefined
-                ? `
-                  <div>
-                    <div class="consulta-field-label">
-                      Tempo
-                    </div>
-                    <div class="consulta-field-value">
-                      ${machineNumber(c.tempo)} s
-                    </div>
-                  </div>
-                `
-                : ""
-            }
-
-            ${
-              c.pressao
-                ? `
-                  <div>
-                    <div class="consulta-field-label">
-                      Pressão
-                    </div>
-                    <div class="consulta-field-value">
-                      ${escapeHtml(c.pressao)}
-                    </div>
-                  </div>
-                `
-                : ""
-            }
-
-          </div>
-
-          ${
-            c.observacoes
-              ? `
-                <div
-                  class="muted"
-                  style="
-                    margin-top:14px;
-                    white-space:pre-wrap;
-                    font-size:12px;
-                    line-height:1.5;
-                  "
-                >
-                  ${escapeHtml(c.observacoes)}
-                </div>
-              `
-              : ""
-          }
-
-        </div>
-      `;
+      return renderConfigCard(c, m, false);
     })
     .join("");
+}
+
+/* ============================================
+   RENDER — CONFIGURAÇÕES GERAIS (loja 1 + global)
+   ============================================ */
+
+function renderGlobais() {
+  const container = document.getElementById("globaisList");
+
+  if (!container) return;
+
+  const searchEl = document.getElementById("globaisBusca");
+
+  const search = normalizeSearch(
+    searchEl ? searchEl.value : ""
+  );
+
+  const filtered = search
+    ? allGlobalConfigs.filter(function (c) {
+        const machineName = c.gestao_loja_maquinas?.nome || "";
+
+        const fields = [
+          c.nome,
+          c.material,
+          c.prensa,
+          c.pressao,
+          c.observacoes,
+          machineName
+        ];
+
+        return fields.some(function (f) {
+          return normalizeSearch(f).includes(search);
+        });
+      })
+    : allGlobalConfigs;
+
+  if (!filtered.length) {
+    container.innerHTML = `
+      <div class="consulta-vazio">
+        Nenhuma configuração global cadastrada pela matriz.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = filtered
+    .map(function (c) {
+      const m = c.gestao_loja_maquinas;
+
+      return renderConfigCard(c, m, true);
+    })
+    .join("");
+}
+
+/* ============================================
+   RENDER — CARD DE CONFIGURAÇÃO (reutilizável)
+   ============================================ */
+
+function renderConfigCard(c, machine, showGlobalTag) {
+  return `
+    <div class="consulta-card">
+
+      <div
+        style="
+          display:flex;
+          justify-content:space-between;
+          align-items:flex-start;
+          gap:10px;
+          flex-wrap:wrap;
+        "
+      >
+
+        <div>
+          <div class="consulta-card-title">
+            ${escapeHtml(c.nome)}
+            ${showGlobalTag ? '<span class="tag-global">Global</span>' : ''}
+          </div>
+
+          ${c.prensa
+            ? `<div class="consulta-card-prensa">
+                 Prensa: ${escapeHtml(c.prensa)}
+               </div>`
+            : ""}
+        </div>
+
+        ${machine
+          ? `<span class="consulta-maquina-tag">
+               ${escapeHtml(machine.nome)}
+             </span>`
+          : ""}
+
+      </div>
+
+      <div class="consulta-grid">
+
+        ${
+          c.material
+            ? `
+              <div>
+                <div class="consulta-field-label">
+                  Produto
+                </div>
+                <div class="consulta-field-value">
+                  ${escapeHtml(c.material)}
+                </div>
+              </div>
+            `
+            : ""
+        }
+
+        ${
+          c.temperatura !== null &&
+          c.temperatura !== undefined
+            ? `
+              <div>
+                <div class="consulta-field-label">
+                  Temperatura
+                </div>
+                <div class="consulta-field-value">
+                  ${machineNumber(c.temperatura)} °C
+                </div>
+              </div>
+            `
+            : ""
+        }
+
+        ${
+          c.tempo !== null &&
+          c.tempo !== undefined
+            ? `
+              <div>
+                <div class="consulta-field-label">
+                  Tempo
+                </div>
+                <div class="consulta-field-value">
+                  ${machineNumber(c.tempo)} s
+                </div>
+              </div>
+            `
+            : ""
+        }
+
+        ${
+          c.pressao
+            ? `
+              <div>
+                <div class="consulta-field-label">
+                  Pressão
+                </div>
+                <div class="consulta-field-value">
+                  ${escapeHtml(c.pressao)}
+                </div>
+              </div>
+            `
+            : ""
+        }
+
+      </div>
+
+      ${
+        c.observacoes
+          ? `
+            <div
+              class="muted"
+              style="
+                margin-top:14px;
+                white-space:pre-wrap;
+                font-size:12px;
+                line-height:1.5;
+              "
+            >
+              ${escapeHtml(c.observacoes)}
+            </div>
+          `
+          : ""
+      }
+
+    </div>
+  `;
 }
 
 /* ============================================
@@ -654,6 +787,8 @@ function renderConfigsModal() {
                     ${escapeHtml(c.nome)}
                   </strong>
 
+                  ${c.global ? '<span class="tag-global">Global</span>' : ''}
+
                   ${
                     c.prensa
                       ? `<div class="muted" style="margin-top:3px;">
@@ -804,6 +939,42 @@ function renderConfigsModal() {
 }
 
 function configForm(c = {}) {
+  /*
+   * O checkbox "Configuração global" só é exibido
+   * quando o usuário logado pertence à loja matriz (id_loja = 1).
+   * Se quiser exibir para todos, remova o if (isLojaMatriz()) abaixo.
+   */
+  const mostrarGlobal = isLojaMatriz();
+
+  const globalCheckbox = mostrarGlobal
+    ? `
+      <div
+        style="
+          margin-top:15px;
+          padding:12px;
+          background:#f8f9fa;
+          border:1px solid #e5e8ed;
+          border-radius:8px;
+        "
+      >
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;">
+          <input
+            id="c_global"
+            type="checkbox"
+            style="width:auto;margin:0;"
+            ${c.global ? "checked" : ""}
+          >
+          <span>
+            Configuração global
+            <small class="muted" style="display:block;font-weight:400;">
+              Visível para todas as lojas na aba "Configurações gerais".
+            </small>
+          </span>
+        </label>
+      </div>
+    `
+    : "";
+
   return `
     <form onsubmit="saveConfig(event, ${
       c.id ? "'" + c.id + "'" : "null"
@@ -884,6 +1055,8 @@ function configForm(c = {}) {
         >${escapeHtml(c.observacoes || "")}</textarea>
       </div>
 
+      ${globalCheckbox}
+
       <button
         class="btn btn-primary full"
         type="submit"
@@ -916,6 +1089,12 @@ async function saveConfig(ev, id) {
   const tempValue = document.getElementById("c_temp").value;
   const tempoValue = document.getElementById("c_tempo").value;
 
+  /*
+   * A flag global só é enviada se o usuário for da loja matriz.
+   * Se não for, o payload NÃO inclui a chave (mantém o valor atual no banco).
+   */
+  const globalEl = document.getElementById("c_global");
+
   const payload = {
     id_loja: currentStore.id_loja,
     maquina_id: currentMachine.id,
@@ -931,6 +1110,10 @@ async function saveConfig(ev, id) {
     observacoes:
       document.getElementById("c_obs").value.trim() || null
   };
+
+  if (globalEl) {
+    payload.global = globalEl.checked;
+  }
 
   let result;
 

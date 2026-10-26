@@ -7,6 +7,35 @@ let editingOrderId = null;
 
 
 /* ======================================================
+   NÚMERO DO PEDIDO — sequencial POR LOJA
+   ====================================================== */
+
+/*
+ * Retorna a próxima sequência de número de pedido para a loja atual.
+ * Conta quantos pedidos a loja já tem e soma 1.
+ *
+ * Como pedidos cancelados continuam na tabela (status = 'Cancelado'),
+ * a contagem nunca "volta" e nunca colide.
+ */
+async function proximaSequenciaPedido() {
+
+  const result = await db
+    .from("gestao_loja_pedidos")
+    .select("id", { count: "exact", head: true })
+    .eq("id_loja", currentStore.id_loja);
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  const total = result.count || 0;
+
+  return total + 1;
+
+}
+
+
+/* ======================================================
    HELPERS GERAIS
    ====================================================== */
 
@@ -424,7 +453,7 @@ function renderOrders() {
             return `
               <tr>
                 <td>
-                  <strong>#${order.numero || order.id}</strong>
+                  <strong>#${order.numero}</strong>
                 </td>
 
                 <td>${escapeHtml(clientLabel)}</td>
@@ -1783,36 +1812,37 @@ async function saveOrder() {
   const maoDeObraFinal = Number(maoDeObra.toFixed(2));
   const valorTotalFinal = Number(valorTotal.toFixed(2));
 
-  const orderData = {
-    id_loja: currentStore.id_loja,
-    cliente_id: Number(clientId),
-    data_pedido: document.getElementById("orderDate").value,
-    status: "Pendente",
-    tipo_entrega: getTipoEntregaFromForm(),
-    subtotal: subtotalFinal,
-    desconto: descontoFinal,
-    acrescimo: acrescimoFinal,
-    frete: freteFinal,
-    mao_de_obra: maoDeObraFinal,
-    valor_total: valorTotalFinal,
-    prazo_entrega: document
-      .getElementById("orderDeliveryDeadline")
-      .value
-      .trim(),
-    forma_pagamento: document
-      .getElementById("orderPayment")
-      .value
-      .trim(),
-    endereco_entrega: getDeliveryAddress(),
-    observacoes: document
-      .getElementById("orderNotes")
-      .value
-      .trim()
-  };
-
   /* ---------- EDIÇÃO ---------- */
+  /* Não envia numero → banco preserva o existente. */
 
   if (editingOrderId) {
+    const orderData = {
+      id_loja: currentStore.id_loja,
+      cliente_id: Number(clientId),
+      data_pedido: document.getElementById("orderDate").value,
+      status: "Pendente",
+      tipo_entrega: getTipoEntregaFromForm(),
+      subtotal: subtotalFinal,
+      desconto: descontoFinal,
+      acrescimo: acrescimoFinal,
+      frete: freteFinal,
+      mao_de_obra: maoDeObraFinal,
+      valor_total: valorTotalFinal,
+      prazo_entrega: document
+        .getElementById("orderDeliveryDeadline")
+        .value
+        .trim(),
+      forma_pagamento: document
+        .getElementById("orderPayment")
+        .value
+        .trim(),
+      endereco_entrega: getDeliveryAddress(),
+      observacoes: document
+        .getElementById("orderNotes")
+        .value
+        .trim()
+    };
+
     const {
       data: updatedOrder,
       error: orderError
@@ -1914,87 +1944,135 @@ async function saveOrder() {
   }
 
   /* ---------- CRIAÇÃO ---------- */
+  /* Calcula o número POR LOJA antes de inserir. */
 
-  const { data: order, error } = await db
-    .from("gestao_loja_pedidos")
-    .insert(orderData)
-    .select()
-    .single();
+  try {
 
-  if (error) {
-    alert("Erro ao salvar pedido:\n" + error.message);
-    return;
-  }
+    const numeroPedido = await proximaSequenciaPedido();
 
-  const itemsData = currentOrderItems.map(item => {
-    const quantidade = Number(item.quantidade) || 0;
-    const precoUnitario = Number(item.preco_unitario) || 0;
-    const descontoItem = Number(item.desconto) || 0;
-
-    const subtotalItem =
-      quantidade * precoUnitario - descontoItem;
-
-    return {
+    const orderData = {
       id_loja: currentStore.id_loja,
-      pedido_id: order.id,
-      produto_id: Number(item.produto_id),
-      variacao_id: item.variacao_id
-        ? Number(item.variacao_id)
-        : null,
-      quantidade: quantidade,
-      preco_unitario: precoUnitario,
-      desconto: descontoItem,
-      subtotal: Number(subtotalItem.toFixed(2)),
-      observacao: item.observacao || null
-    };
-  });
 
-  const { error: itemsError } = await db
-    .from("gestao_loja_pedidos_itens")
-    .insert(itemsData);
+      // Número sequencial POR LOJA (não usa ID global)
+      numero: numeroPedido,
 
-  if (itemsError) {
-    await db
-      .from("gestao_loja_pedidos")
-      .delete()
-      .eq("id", order.id);
-
-    alert(
-      "Erro ao salvar os itens do pedido:\n" +
-      itemsError.message
-    );
-    return;
-  }
-
-  const { error: finalInsertUpdateError } = await db
-    .from("gestao_loja_pedidos")
-    .update({
+      cliente_id: Number(clientId),
+      data_pedido: document.getElementById("orderDate").value,
+      status: "Pendente",
+      tipo_entrega: getTipoEntregaFromForm(),
       subtotal: subtotalFinal,
       desconto: descontoFinal,
       acrescimo: acrescimoFinal,
       frete: freteFinal,
       mao_de_obra: maoDeObraFinal,
-      valor_total: valorTotalFinal
-    })
-    .eq("id", order.id)
-    .eq("id_loja", currentStore.id_loja);
+      valor_total: valorTotalFinal,
+      prazo_entrega: document
+        .getElementById("orderDeliveryDeadline")
+        .value
+        .trim(),
+      forma_pagamento: document
+        .getElementById("orderPayment")
+        .value
+        .trim(),
+      endereco_entrega: getDeliveryAddress(),
+      observacoes: document
+        .getElementById("orderNotes")
+        .value
+        .trim()
+    };
 
-  if (finalInsertUpdateError) {
+    const { data: order, error } = await db
+      .from("gestao_loja_pedidos")
+      .insert(orderData)
+      .select()
+      .single();
+
+    if (error) {
+      alert("Erro ao salvar pedido:\n" + error.message);
+      return;
+    }
+
+    const itemsData = currentOrderItems.map(item => {
+      const quantidade = Number(item.quantidade) || 0;
+      const precoUnitario = Number(item.preco_unitario) || 0;
+      const descontoItem = Number(item.desconto) || 0;
+
+      const subtotalItem =
+        quantidade * precoUnitario - descontoItem;
+
+      return {
+        id_loja: currentStore.id_loja,
+        pedido_id: order.id,
+        produto_id: Number(item.produto_id),
+        variacao_id: item.variacao_id
+          ? Number(item.variacao_id)
+          : null,
+        quantidade: quantidade,
+        preco_unitario: precoUnitario,
+        desconto: descontoItem,
+        subtotal: Number(subtotalItem.toFixed(2)),
+        observacao: item.observacao || null
+      };
+    });
+
+    const { error: itemsError } = await db
+      .from("gestao_loja_pedidos_itens")
+      .insert(itemsData);
+
+    if (itemsError) {
+      await db
+        .from("gestao_loja_pedidos")
+        .delete()
+        .eq("id", order.id);
+
+      alert(
+        "Erro ao salvar os itens do pedido:\n" +
+        itemsError.message
+      );
+      return;
+    }
+
+    const { error: finalInsertUpdateError } = await db
+      .from("gestao_loja_pedidos")
+      .update({
+        subtotal: subtotalFinal,
+        desconto: descontoFinal,
+        acrescimo: acrescimoFinal,
+        frete: freteFinal,
+        mao_de_obra: maoDeObraFinal,
+        valor_total: valorTotalFinal
+      })
+      .eq("id", order.id)
+      .eq("id_loja", currentStore.id_loja);
+
+    if (finalInsertUpdateError) {
+      alert(
+        "Pedido criado, mas ocorreu um erro ao atualizar o valor total:\n" +
+        finalInsertUpdateError.message
+      );
+      return;
+    }
+
+    closeModal();
+    await loadOrders();
+
     alert(
-      "Pedido criado, mas ocorreu um erro ao atualizar o valor total:\n" +
-      finalInsertUpdateError.message
+      "Pedido salvo com sucesso.\n\n" +
+      "Número: #" + numeroPedido + "\n" +
+      "Total: R$ " +
+      valorTotalFinal.toFixed(2).replace(".", ",")
     );
-    return;
+
+  } catch (error) {
+
+    console.error("Erro ao salvar pedido:", error);
+
+    alert(
+      "Erro ao salvar pedido:\n" +
+      (error.message || "Erro desconhecido.")
+    );
+
   }
-
-  closeModal();
-  await loadOrders();
-
-  alert(
-    "Pedido salvo com sucesso.\n\n" +
-    "Total: R$ " +
-    valorTotalFinal.toFixed(2).replace(".", ",")
-  );
 }
 
 
@@ -2100,7 +2178,7 @@ async function viewOrder(orderId) {
   document.querySelector(".modal-card").style.maxWidth = "1100px";
 
   document.getElementById("modalTitle").textContent =
-    `Pedido #${order.numero || order.id}`;
+    `Pedido #${order.numero}`;
 
   const itemsHtml =
     (items || []).map(item => {
@@ -2328,7 +2406,7 @@ async function viewOrder(orderId) {
       <div class="card">
         <h3>Dados do pedido</h3>
 
-        <p><strong>Número:</strong> #${order.numero || order.id}</p>
+        <p><strong>Número:</strong> #${order.numero}</p>
         <p><strong>Data:</strong> ${formatDate(order.data_pedido)}</p>
         <p><strong>Status:</strong> ${escapeHtml(order.status || "Pendente")}</p>
         <p><strong>Forma de pagamento:</strong> ${escapeHtml(order.forma_pagamento || "-")}</p>
@@ -2513,7 +2591,7 @@ async function acceptOrder(orderId) {
   }
 
   const confirmed = confirm(
-    `Deseja aceitar o pedido #${order.numero || order.id}?\n\n` +
+    `Deseja aceitar o pedido #${order.numero}?\n\n` +
     `Valor: ${orderMoney(order.valor_total)}\n\n` +
     `Ao aceitar, o pedido passará para "Pendente".`
   );
@@ -2587,7 +2665,7 @@ async function editOrder(orderId) {
   document.querySelector(".modal-card").style.maxWidth = "900px";
 
   document.getElementById("modalTitle").textContent =
-    `Editar pedido #${order.numero || order.id}`;
+    `Editar pedido #${order.numero}`;
 
   document.getElementById("modalContent").innerHTML = buildOrderForm();
 
@@ -2654,7 +2732,7 @@ async function confirmOrder(orderId) {
   }
 
   const confirmed = confirm(
-    `Deseja confirmar o pedido #${order.numero || order.id}?\n\n` +
+    `Deseja confirmar o pedido #${order.numero}?\n\n` +
     `Valor: ${orderMoney(order.valor_total)}\n\n` +
     `Ao confirmar, o estoque será movimentado.`
   );
@@ -2707,7 +2785,7 @@ async function cancelOrder(orderId) {
   }
 
   const confirmed = confirm(
-    `Deseja cancelar o pedido #${order.numero || order.id}?`
+    `Deseja cancelar o pedido #${order.numero}?`
   );
 
   if (!confirmed) {
@@ -2816,7 +2894,6 @@ async function generateOrderPDF(orderId) {
       `;
     }).join("");
 
-  // Bloco de entrega/retirada no PDF
   const entregaPdfBlock = pedidoRetirada
     ? `
       <div class="section">
@@ -2854,7 +2931,7 @@ async function generateOrderPDF(orderId) {
       <meta charset="UTF-8">
 
       <title>
-        Pedido #${order.numero || order.id}
+        Pedido #${order.numero}
       </title>
 
       <style>
@@ -2976,7 +3053,7 @@ async function generateOrderPDF(orderId) {
 
         <div class="title">
           PEDIDO
-          <div>#${order.numero || order.id}</div>
+          <div>#${order.numero}</div>
         </div>
       </div>
 
@@ -3250,7 +3327,7 @@ async function openInvoiceForm(orderId) {
     }).join("");
 
   openModal(
-    `Emitir NF-e — Pedido #${order.numero || order.id}`,
+    `Emitir NF-e — Pedido #${order.numero}`,
     `
       <div class="card" style="margin-bottom:15px;">
         <p>
@@ -3659,8 +3736,8 @@ function openPaymentForm(orderId, tipo = "adiantamento") {
 
   const titulo =
     tipo === "restante"
-      ? `Pagar restante — Pedido #${order.numero || order.id}`
-      : `Adiantamento — Pedido #${order.numero || order.id}`;
+      ? `Pagar restante — Pedido #${order.numero}`
+      : `Adiantamento — Pedido #${order.numero}`;
 
   openModal(
     titulo,
@@ -3813,7 +3890,7 @@ async function savePayment(orderId, tipo) {
   const dataPagamento =
     document.getElementById("pag_data")?.value || getToday();
 
-  const numeroPedido = order.numero || order.id;
+  const numeroPedido = order.numero;
 
   const descricaoBase =
     tipo === "restante"

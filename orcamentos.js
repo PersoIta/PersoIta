@@ -7,6 +7,36 @@ let editingQuoteId = null;
 
 
 /* ======================================================
+   NÚMERO DO ORÇAMENTO — sequencial POR LOJA
+   ====================================================== */
+
+/*
+ * Retorna a próxima sequência de número para a loja atual.
+ *
+ * IMPORTANTE: orçamentos e pedidos compartilham a mesma
+ * tabela (gestao_loja_pedidos) e a mesma numeração por loja.
+ * Isso evita colisão quando um orçamento é aprovado e vira
+ * pedido (o número é preservado).
+ */
+async function proximaSequenciaOrcamento() {
+
+  const result = await db
+    .from("gestao_loja_pedidos")
+    .select("id", { count: "exact", head: true })
+    .eq("id_loja", currentStore.id_loja);
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  const total = result.count || 0;
+
+  return total + 1;
+
+}
+
+
+/* ======================================================
    HELPERS
    ====================================================== */
 
@@ -333,7 +363,7 @@ function renderQuotes() {
 
                 <td>
                   <strong>
-                    #${quote.numero || quote.id}
+                    #${quote.numero}
                   </strong>
                 </td>
 
@@ -2345,6 +2375,7 @@ async function saveQuote() {
 
 
   /* ---------- EDIÇÃO ---------- */
+  /* Não envia numero → banco preserva o existente. */
 
   if (editingQuoteId) {
 
@@ -2457,96 +2488,115 @@ async function saveQuote() {
 
 
   /* ---------- CRIAÇÃO ---------- */
+  /* Calcula o número POR LOJA antes de inserir. */
 
-  const { data: quote, error } = await db
-    .from("gestao_loja_pedidos")
-    .insert(quoteData)
-    .select()
-    .single();
+  try {
 
-  if (error) {
-    alert("Erro ao salvar orçamento:\n" + error.message);
-    return;
-  }
+    const numeroOrcamento = await proximaSequenciaOrcamento();
 
-  const itemsData =
-    currentQuoteItems.map(item => {
+    quoteData.numero = numeroOrcamento;
 
-      const quantidade = Number(item.quantidade) || 0;
-      const precoUnitario = Number(item.preco_unitario) || 0;
-      const descontoItem = Number(item.desconto) || 0;
-      const subtotalItem =
-        quantidade * precoUnitario - descontoItem;
-
-      return {
-
-        id_loja: currentStore.id_loja,
-        pedido_id: quote.id,
-
-        produto_id: Number(item.produto_id),
-        variacao_id: item.variacao_id
-          ? Number(item.variacao_id)
-          : null,
-
-        quantidade,
-        preco_unitario: precoUnitario,
-        desconto: descontoItem,
-        subtotal: Number(subtotalItem.toFixed(2)),
-
-        observacao: item.observacao || null
-
-      };
-
-    });
-
-  const { error: itemsError } = await db
-    .from("gestao_loja_pedidos_itens")
-    .insert(itemsData);
-
-  if (itemsError) {
-
-    await db
+    const { data: quote, error } = await db
       .from("gestao_loja_pedidos")
-      .delete()
-      .eq("id", quote.id);
+      .insert(quoteData)
+      .select()
+      .single();
+
+    if (error) {
+      alert("Erro ao salvar orçamento:\n" + error.message);
+      return;
+    }
+
+    const itemsData =
+      currentQuoteItems.map(item => {
+
+        const quantidade = Number(item.quantidade) || 0;
+        const precoUnitario = Number(item.preco_unitario) || 0;
+        const descontoItem = Number(item.desconto) || 0;
+        const subtotalItem =
+          quantidade * precoUnitario - descontoItem;
+
+        return {
+
+          id_loja: currentStore.id_loja,
+          pedido_id: quote.id,
+
+          produto_id: Number(item.produto_id),
+          variacao_id: item.variacao_id
+            ? Number(item.variacao_id)
+            : null,
+
+          quantidade,
+          preco_unitario: precoUnitario,
+          desconto: descontoItem,
+          subtotal: Number(subtotalItem.toFixed(2)),
+
+          observacao: item.observacao || null
+
+        };
+
+      });
+
+    const { error: itemsError } = await db
+      .from("gestao_loja_pedidos_itens")
+      .insert(itemsData);
+
+    if (itemsError) {
+
+      await db
+        .from("gestao_loja_pedidos")
+        .delete()
+        .eq("id", quote.id);
+
+      alert(
+        "Erro ao salvar os itens do orçamento:\n" +
+        itemsError.message
+      );
+
+      return;
+
+    }
+
+    const { error: finalUpdateError } = await db
+      .from("gestao_loja_pedidos")
+      .update({
+        subtotal: subtotalFinal,
+        desconto: descontoFinal,
+        acrescimo: acrescimoFinal,
+        frete: freteFinal,
+        mao_de_obra: maoDeObraFinal,
+        valor_total: valorTotalFinal
+      })
+      .eq("id", quote.id)
+      .eq("id_loja", currentStore.id_loja);
+
+    if (finalUpdateError) {
+      alert(
+        "Orçamento criado, mas ocorreu um erro ao atualizar o valor total:\n" +
+        finalUpdateError.message
+      );
+      return;
+    }
+
+    closeModal();
+    await loadQuotes();
 
     alert(
-      "Erro ao salvar os itens do orçamento:\n" +
-      itemsError.message
+      "Orçamento salvo com sucesso.\n\n" +
+      "Número: #" + numeroOrcamento + "\n" +
+      "Total: " + quoteMoney(valorTotalFinal)
     );
 
-    return;
+  } catch (error) {
 
-  }
+    console.error("Erro ao salvar orçamento:", error);
 
-  const { error: finalUpdateError } = await db
-    .from("gestao_loja_pedidos")
-    .update({
-      subtotal: subtotalFinal,
-      desconto: descontoFinal,
-      acrescimo: acrescimoFinal,
-      frete: freteFinal,
-      mao_de_obra: maoDeObraFinal,
-      valor_total: valorTotalFinal
-    })
-    .eq("id", quote.id)
-    .eq("id_loja", currentStore.id_loja);
-
-  if (finalUpdateError) {
     alert(
-      "Orçamento criado, mas ocorreu um erro ao atualizar o valor total:\n" +
-      finalUpdateError.message
+      "Erro ao salvar orçamento:\n" +
+      (error.message || "Erro desconhecido.")
     );
-    return;
+
   }
-
-  closeModal();
-  await loadQuotes();
-
-  alert(
-    "Orçamento salvo com sucesso.\n\n" +
-    "Total: " + quoteMoney(valorTotalFinal)
-  );
 
 }
 
@@ -2625,7 +2675,7 @@ async function viewQuote(quoteId) {
   document.getElementById(
     "modalTitle"
   ).textContent =
-    `Orçamento #${quote.numero || quote.id}`;
+    `Orçamento #${quote.numero}`;
 
   const itemsHtml =
     (items || []).map(item => {
@@ -2693,7 +2743,7 @@ async function viewQuote(quoteId) {
 
         <p>
           <strong>Número:</strong>
-          #${quote.numero || quote.id}
+          #${quote.numero}
         </p>
 
         <p>
@@ -3064,7 +3114,7 @@ async function editQuote(quoteId) {
   document.getElementById(
     "modalTitle"
   ).textContent =
-    `Editar orçamento #${quote.numero || quote.id}`;
+    `Editar orçamento #${quote.numero}`;
 
   document.getElementById(
     "modalContent"
@@ -3144,7 +3194,7 @@ async function approveQuote(quoteId) {
   }
 
   const confirmed = confirm(
-    `Deseja aprovar o orçamento #${quote.numero || quote.id}?\n\n` +
+    `Deseja aprovar o orçamento #${quote.numero}?\n\n` +
     `Valor: ${quoteMoney(quote.valor_total)}\n\n` +
     `O orçamento passará para o status "Pendente".`
   );
@@ -3176,8 +3226,18 @@ async function approveQuote(quoteId) {
 
 async function cancelQuote(quoteId) {
 
+  // Busca o orçamento para mostrar o número amigável na confirmação
+  const { data: quote } = await db
+    .from("gestao_loja_pedidos")
+    .select("numero")
+    .eq("id", quoteId)
+    .eq("id_loja", currentStore.id_loja)
+    .single();
+
+  const numeroLabel = quote?.numero ? `#${quote.numero}` : "";
+
   const confirmed = confirm(
-    "Deseja cancelar este orçamento?"
+    `Deseja cancelar ${numeroLabel ? "o orçamento " + numeroLabel : "este orçamento"}?`
   );
 
   if (!confirmed) {
@@ -3348,7 +3408,7 @@ async function generateQuotePDF(quoteId) {
       <meta charset="UTF-8">
 
       <title>
-        Orçamento #${quote.numero || quote.id}
+        Orçamento #${quote.numero}
       </title>
 
       <style>
@@ -3480,7 +3540,7 @@ async function generateQuotePDF(quoteId) {
 
           ORÇAMENTO
 
-          <div>#${quote.numero || quote.id}</div>
+          <div>#${quote.numero}</div>
 
         </div>
 

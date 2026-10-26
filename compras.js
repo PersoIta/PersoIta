@@ -10,6 +10,36 @@ let currentPurchaseItems = [];
 
 let editingPurchaseId = null;
 
+/*
+ * =========================================================
+ * NÚMERO DA COMPRA — sequencial POR LOJA
+ * =========================================================
+ */
+
+/*
+ * Retorna a próxima sequência de número de compra para a loja atual.
+ * Conta quantas compras a loja já tem e soma 1.
+ *
+ * Como compras canceladas continuam na tabela (status = 'Cancelado'),
+ * a contagem nunca "volta" e nunca colide.
+ */
+async function proximaSequenciaCompra() {
+
+  const result = await db
+    .from("gestao_loja_compras")
+    .select("id", { count: "exact", head: true })
+    .eq("id_loja", currentStore.id_loja);
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  const total = result.count || 0;
+
+  return total + 1;
+
+}
+
 function purchaseMoney(value) {
   return Number(value || 0).toLocaleString(
     "pt-BR",
@@ -295,10 +325,7 @@ function renderPurchases() {
                   <tr>
                     <td>
                       <strong>
-                        ${
-                          purchase.numero ||
-                          purchase.id
-                        }
+                        ${purchase.numero}
                       </strong>
                     </td>
 
@@ -1640,147 +1667,173 @@ async function savePurchase() {
       0
     );
 
-  const purchaseData = {
-    id_loja:
-      currentStore.id_loja,
+  try {
 
-    fornecedor_id:
-      Number(
-        supplierId
-      ),
+    // Calcula a sequência DENTRO da loja atual (começa em 1)
+    const numeroCompra = await proximaSequenciaCompra();
 
-    data_compra:
-      document.getElementById(
-        "purchaseDate"
-      ).value,
+    const purchaseData = {
+      id_loja:
+        currentStore.id_loja,
 
-    status:
-      "Pendente",
+      // Número sequencial POR LOJA (não usa ID global)
+      numero:
+        numeroCompra,
 
-    subtotal:
-      subtotal,
+      fornecedor_id:
+        Number(
+          supplierId
+        ),
 
-    desconto:
-      discount,
+      data_compra:
+        document.getElementById(
+          "purchaseDate"
+        ).value,
 
-    frete:
-      freight,
+      status:
+        "Pendente",
 
-    valor_total:
-      total,
+      subtotal:
+        subtotal,
 
-    numero_nota_fiscal:
-      document.getElementById(
-        "purchaseInvoice"
-      ).value.trim(),
+      desconto:
+        discount,
 
-    observacoes:
-      document.getElementById(
-        "purchaseNotes"
-      ).value.trim(),
+      frete:
+        freight,
 
-      forma_pagamento: document.getElementById("purchasePayment").value,
-  };
+      valor_total:
+        total,
 
-  const {
-    data: purchase,
-    error
-  } = await db
-    .from(
-      "gestao_loja_compras"
-    )
-    .insert(
-      purchaseData
-    )
-    .select()
-    .single();
+      numero_nota_fiscal:
+        document.getElementById(
+          "purchaseInvoice"
+        ).value.trim(),
 
-  if (error) {
-    alert(
-      "Erro ao salvar compra:\n" +
-      error.message
-    );
+      observacoes:
+        document.getElementById(
+          "purchaseNotes"
+        ).value.trim(),
 
-    return;
-  }
+      forma_pagamento:
+        document.getElementById(
+          "purchasePayment"
+        ).value,
+    };
 
-  const itemsData =
-    currentPurchaseItems.map(
-      item => ({
-        id_loja:
-          currentStore.id_loja,
-
-        compra_id:
-          purchase.id,
-
-        produto_id:
-          Number(
-            item.produto_id
-          ),
-
-        variacao_id:
-          item.variacao_id
-            ? Number(
-                item.variacao_id
-              )
-            : null,
-
-        quantidade:
-          Number(
-            item.quantidade
-          ),
-
-        preco_unitario:
-          Number(
-            item.preco_unitario
-          ),
-
-        subtotal:
-          Number(
-            item.quantidade
-          ) *
-          Number(
-            item.preco_unitario
-          )
-      })
-    );
-
-  const {
-    error: itemsError
-  } = await db
-    .from(
-      "gestao_loja_compras_itens"
-    )
-    .insert(
-      itemsData
-    );
-
-  if (itemsError) {
-    await db
+    const {
+      data: purchase,
+      error
+    } = await db
       .from(
         "gestao_loja_compras"
       )
-      .delete()
-      .eq(
-        "id",
-        purchase.id
+      .insert(
+        purchaseData
+      )
+      .select()
+      .single();
+
+    if (error) {
+      alert(
+        "Erro ao salvar compra:\n" +
+        error.message
       );
 
+      return;
+    }
+
+    const itemsData =
+      currentPurchaseItems.map(
+        item => ({
+          id_loja:
+            currentStore.id_loja,
+
+          compra_id:
+            purchase.id,
+
+          produto_id:
+            Number(
+              item.produto_id
+            ),
+
+          variacao_id:
+            item.variacao_id
+              ? Number(
+                  item.variacao_id
+                )
+              : null,
+
+          quantidade:
+            Number(
+              item.quantidade
+            ),
+
+          preco_unitario:
+            Number(
+              item.preco_unitario
+            ),
+
+          subtotal:
+            Number(
+              item.quantidade
+            ) *
+            Number(
+              item.preco_unitario
+            )
+        })
+      );
+
+    const {
+      error: itemsError
+    } = await db
+      .from(
+        "gestao_loja_compras_itens"
+      )
+      .insert(
+        itemsData
+      );
+
+    if (itemsError) {
+      await db
+        .from(
+          "gestao_loja_compras"
+        )
+        .delete()
+        .eq(
+          "id",
+          purchase.id
+        );
+
+      alert(
+        "Erro ao salvar os itens da compra:\n" +
+        itemsError.message
+      );
+
+      return;
+    }
+
+    closeModal();
+
+    await loadPurchases();
+
     alert(
-      "Erro ao salvar os itens da compra:\n" +
-      itemsError.message
+      "Compra salva com sucesso."
     );
 
-    return;
+  } catch (error) {
+
+    console.error(
+      "Erro ao salvar compra:",
+      error
+    );
+
+    alert(
+      "Erro ao salvar compra:\n" +
+      (error.message || "Erro desconhecido.")
+    );
+
   }
-
-  closeModal();
-
-  await loadPurchases();
-
-  alert(
-    "Compra salva com sucesso."
-  );
 }
 
 async function viewPurchase(
@@ -1872,10 +1925,7 @@ async function viewPurchase(
   document.getElementById(
     "modalTitle"
   ).textContent =
-    `Compra #${
-      purchase.numero ||
-      purchase.id
-    }`;
+    `Compra #${purchase.numero}`;
 
   const itemsHtml =
     (items || []).map(
@@ -1952,10 +2002,7 @@ async function viewPurchase(
             Número:
           </strong>
 
-          #${
-            purchase.numero ||
-            purchase.id
-          }
+          #${purchase.numero}
         </p>
 
         <p>
@@ -2308,11 +2355,6 @@ async function editPurchase(
     "hidden"
   );
 
-    document.getElementById(
-    "purchasePayment"
-  ).value =
-    purchase.forma_pagamento || "";
-
   document.querySelector(
     ".modal-card"
   ).style.maxWidth =
@@ -2321,10 +2363,7 @@ async function editPurchase(
   document.getElementById(
     "modalTitle"
   ).textContent =
-    `Editar compra #${
-      purchase.numero ||
-      purchase.id
-    }`;
+    `Editar compra #${purchase.numero}`;
 
   document.getElementById(
     "modalContent"
@@ -2356,6 +2395,11 @@ async function editPurchase(
     "";
 
   document.getElementById(
+    "purchasePayment"
+  ).value =
+    purchase.forma_pagamento || "";
+
+  document.getElementById(
     "purchaseDiscount"
   ).value =
     Number(
@@ -2376,7 +2420,7 @@ async function editPurchase(
 
 async function updatePurchase(
   purchaseId
-) {  
+) {
   const supplierId =
     document.getElementById(
       "purchaseSupplier"
@@ -2460,7 +2504,7 @@ async function updatePurchase(
       0
     );
 
-    const purchaseData = {
+  const purchaseData = {
     fornecedor_id:
       Number(
         supplierId
@@ -2644,10 +2688,7 @@ async function finalizePurchase(
 
   const confirmed =
     confirm(
-      `Deseja finalizar a compra #${
-        purchase.numero ||
-        purchase.id
-      }?\n\n` +
+      `Deseja finalizar a compra #${purchase.numero}?\n\n` +
       `Valor: ${
         purchaseMoney(
           purchase.valor_total
@@ -2718,10 +2759,7 @@ async function cancelPurchase(
 
   const confirmed =
     confirm(
-      `Deseja cancelar a compra #${
-        purchase.numero ||
-        purchase.id
-      }?`
+      `Deseja cancelar a compra #${purchase.numero}?`
     );
 
   if (!confirmed) {

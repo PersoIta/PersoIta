@@ -32,6 +32,36 @@
   }
 
   /* ---------------------------------------------------------------
+     NUMERAÇÃO SEQUENCIAL POR LOJA (calculada na exibição)
+     ---------------------------------------------------------------
+     - Ordena as movimentações da loja atual por `id` (ordem de criação)
+     - Atribui 1, 2, 3... na ordem
+     - Guarda num Map: id_real → numero_amigavel
+     - O `id` real continua sendo usado para editar/estornar
+     --------------------------------------------------------------- */
+  let numeroPorId = new Map();
+
+  function calcularNumeracaoSequencial() {
+    numeroPorId = new Map();
+
+    // Ordena por id crescente (ordem de criação)
+    const ordenadas = [...movements].sort((a, b) => {
+      return Number(a.id) - Number(b.id);
+    });
+
+    let seq = 0;
+
+    ordenadas.forEach(m => {
+      seq++;
+      numeroPorId.set(String(m.id), seq);
+    });
+  }
+
+  function getNumero(m) {
+    return numeroPorId.get(String(m.id)) || "?";
+  }
+
+  /* ---------------------------------------------------------------
      REGIME DE CAIXA POR EVENTO
      --------------------------------------------------------------- */
   function signed(m) {
@@ -100,53 +130,56 @@
 
   /* ---------- Render ---------- */
   function render() {
+    // Recalcula a numeração sequencial por loja ANTES de filtrar
+    calcularNumeracaoSequencial();
+
     filteredMovements = movements.filter(matches);
 
     /* --- Métricas do topo --- */
-      let t = {
-        entries: 0,
-        expenses: 0,
-        reversals: 0,
-        balance: 0,
-        count: 0,
-        expenseCount: 0,
-        reversalCount: 0
-      };
+    let t = {
+      entries: 0,
+      expenses: 0,
+      reversals: 0,
+      balance: 0,
+      count: 0,
+      expenseCount: 0,
+      reversalCount: 0
+    };
 
-      filteredMovements.forEach(m => {
-        const v = +m.valor || 0;
+    filteredMovements.forEach(m => {
+      const v = +m.valor || 0;
 
-        if (m.tipo === "Estorno") {
-          t.reversals += v;
-          t.reversalCount++;
-        } else if (m.tipo === "Entrada") {
-          t.entries += v;
+      if (m.tipo === "Estorno") {
+        t.reversals += v;
+        t.reversalCount++;
+      } else if (m.tipo === "Entrada") {
+        t.entries += v;
 
-          if (m.status !== "Estornado") {
-            t.count++;
-          }
-        } else if (m.tipo === "Saída") {
-          t.expenses += v;
-
-          if (m.status !== "Estornado") {
-            t.expenseCount++;
-          }
+        if (m.status !== "Estornado") {
+          t.count++;
         }
+      } else if (m.tipo === "Saída") {
+        t.expenses += v;
 
-        t.balance += signed(m);
-      });
+        if (m.status !== "Estornado") {
+          t.expenseCount++;
+        }
+      }
 
-      $("grossRevenue").textContent = money(t.entries - t.reversals);
-      $("totalEntries").textContent = money(t.entries);
-      $("entryCount").textContent = `${t.count} movimento(s)`;
+      t.balance += signed(m);
+    });
 
-      $("totalExpenses").textContent = money(t.expenses);
-      $("expenseCount").textContent = `${t.expenseCount} movimento(s)`;
+    $("grossRevenue").textContent = money(t.entries - t.reversals);
+    $("totalEntries").textContent = money(t.entries);
+    $("entryCount").textContent = `${t.count} movimento(s)`;
 
-      $("totalReversals").textContent = money(t.reversals);
-      $("reversalCount").textContent = `${t.reversalCount} estorno(s)`;
+    $("totalExpenses").textContent = money(t.expenses);
+    $("expenseCount").textContent = `${t.expenseCount} movimento(s)`;
 
-      $("netBalance").textContent = money(t.balance);
+    $("totalReversals").textContent = money(t.reversals);
+    $("reversalCount").textContent = `${t.reversalCount} estorno(s)`;
+
+    $("netBalance").textContent = money(t.balance);
 
     /* --- Resumo por período --- */
     let g = $("groupBy").value, groups = new Map();
@@ -205,9 +238,20 @@
             podeEditar = m.status !== "Estornado" && m.tipo !== "Estorno",
             podeEstornar = m.status !== "Estornado" && m.tipo !== "Estorno";
 
+          // =========================================================
+          // Número amigável sequencial por loja
+          // =========================================================
+          const numeroAmigavel = getNumero(m);
+
           let badge = "";
           if (m.tipo === "Estorno") {
-            badge = ` <small class="badge-estorno">estorno de #${esc(m.movimento_original_id)}</small>`;
+            // Para estorno, mostra o número amigável do movimento original
+            const originalId = String(m.movimento_original_id);
+            const numeroOriginal = numeroPorId.get(originalId);
+
+            badge = numeroOriginal
+              ? ` <small class="badge-estorno">estorno de #${numeroOriginal}</small>`
+              : ` <small class="badge-estorno">estorno</small>`;
           } else if (m.status === "Estornado") {
             badge = ` <small class="badge-estornado">estornado</small>`;
           }
@@ -222,7 +266,7 @@
           if (!acoes)       acoes = '<span class="muted">—</span>';
 
           return `<tr>
-            <td class="id-cell">#${esc(m.id)}</td>
+            <td class="id-cell">#${numeroAmigavel}</td>
             <td>${d ? d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "-"}</td>
             <td>${esc(m.descricao)}${badge}</td>
             <td>${esc(m.categoria)}</td>
@@ -330,6 +374,17 @@
       error("Movimentações estornadas ou de estorno não podem ser editadas.");
       return;
     }
+
+    // =========================================================
+    // Mostra o número amigável no título do modal de edição
+    // =========================================================
+    const numeroAmigavel = getNumero(m);
+    const titulo = document.querySelector("#editMovementModal h2, #editMovementModal .modal-title, #editMovementModal h3");
+
+    if (titulo) {
+      titulo.textContent = `Editar movimentação #${numeroAmigavel}`;
+    }
+
     $("editId").value = m.id;
     $("editType").value = m.tipo;
     $("editCategory").value = m.categoria || "Outros";
@@ -402,7 +457,16 @@
       error("Esta movimentação não pode ser estornada.");
       return;
     }
-    const ok = confirm(`Estornar a movimentação "${m.descricao}" de ${money(m.valor)}? Um novo registro de estorno será criado.`);
+
+    // =========================================================
+    // Usa o número amigável na confirmação
+    // =========================================================
+    const numeroAmigavel = getNumero(m);
+
+    const ok = confirm(
+      `Estornar a movimentação #${numeroAmigavel} "${m.descricao}" de ${money(m.valor)}?\n\n` +
+      `Um novo registro de estorno será criado.`
+    );
     if (!ok) return;
 
     const client = db();
@@ -420,55 +484,57 @@
   }
 
   /* ---------- Export CSV ---------- */
-/* ---------- Export CSV ---------- */
-function csv() {
-  if (!filteredMovements.length) {
-    error("Não há movimentações para exportar.");
-    return;
+  function csv() {
+    if (!filteredMovements.length) {
+      error("Não há movimentações para exportar.");
+      return;
+    }
+
+    // Formata valores no padrão brasileiro: 1234,56
+    function formatDecimal(value) {
+      return Number(value || 0).toFixed(2).replace(".", ",");
+    }
+
+    // =========================================================
+    // Exporta o número amigável (não o id global)
+    // =========================================================
+    const data = [
+      ["Nº", "Data", "Descrição", "Categoria", "Pedido", "Tipo", "Pagamento", "Status", "Valor"],
+
+      ...filteredMovements.map(m => [
+        getNumero(m),
+        m.data_movimento,
+        m.descricao,
+        m.categoria,
+        m.pedido_id,
+        m.tipo,
+        m.forma_pagamento,
+        m.status,
+        formatDecimal(m.valor)
+      ])
+    ];
+
+    const c = data
+      .map(row =>
+        row.map(value =>
+          `"${String(value ?? "").replace(/"/g, '""')}"`
+        ).join(";")
+      )
+      .join("\r\n");
+
+    const u = URL.createObjectURL(
+      new Blob(["\ufeff" + c], {
+        type: "text/csv;charset=utf-8"
+      })
+    );
+
+    const a = document.createElement("a");
+    a.href = u;
+    a.download = `financeiro-${iso(new Date())}.csv`;
+    a.click();
+
+    URL.revokeObjectURL(u);
   }
-
-  // Formata valores no padrão brasileiro: 1234,56
-  function formatDecimal(value) {
-    return Number(value || 0).toFixed(2).replace(".", ",");
-  }
-
-  const data = [
-    ["ID", "Data", "Descrição", "Categoria", "Pedido", "Tipo", "Pagamento", "Status", "Valor"],
-
-    ...filteredMovements.map(m => [
-      m.id,
-      m.data_movimento,
-      m.descricao,
-      m.categoria,
-      m.pedido_id,
-      m.tipo,
-      m.forma_pagamento,
-      m.status,
-      formatDecimal(m.valor)
-    ])
-  ];
-
-  const c = data
-    .map(row =>
-      row.map(value =>
-        `"${String(value ?? "").replace(/"/g, '""')}"`
-      ).join(";")
-    )
-    .join("\r\n");
-
-  const u = URL.createObjectURL(
-    new Blob(["\ufeff" + c], {
-      type: "text/csv;charset=utf-8"
-    })
-  );
-
-  const a = document.createElement("a");
-  a.href = u;
-  a.download = `financeiro-${iso(new Date())}.csv`;
-  a.click();
-
-  URL.revokeObjectURL(u);
-}
 
   /* ---------- Init ---------- */
   document.addEventListener("DOMContentLoaded", () => {
