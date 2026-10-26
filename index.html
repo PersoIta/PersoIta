@@ -216,7 +216,7 @@
       font-size: 12px;
     }
 
-    /* Link "Cadastrar loja" (só aparece com token na URL) */
+    /* Botão "Criar nova loja" */
     .signup-link-wrapper {
       display: none;
       text-align: center;
@@ -335,7 +335,7 @@
           <a id="signupLink" class="signup-link" href="cadastro.html">
             🎉 Criar nova loja
           </a>
-          <span id="signupNote" class="signup-note"></span>
+          <span class="signup-note">Você foi convidado a criar uma loja.</span>
         </div>
 
         <div class="login-footer">
@@ -350,57 +350,33 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
 
-  <!-- Script do botão de convite: NÃO depende de window.db nem de validação -->
   <script>
+    /* =========================================================
+       BOTÃO "CRIAR NOVA LOJA"
+       Regra: se a URL tem ?token=..., mostra o botão e aponta
+       direto para cadastro.html?token=...
+       Não valida nada. Não depende de window.db.
+       ========================================================= */
     (function configurarBotaoConvite() {
-      const params = new URLSearchParams(window.location.search);
-      const token = params.get("token");
+      const token = new URLSearchParams(window.location.search).get("token");
 
-      // Sem token na URL → botão fica escondido (comportamento padrão do CSS)
-      if (!token) return;
+      if (!token) {
+        console.log("[convite] Nenhum token na URL — botão escondido.");
+        return;
+      }
 
       const wrapper = document.getElementById("signupLinkWrapper");
       const link    = document.getElementById("signupLink");
-      const note    = document.getElementById("signupNote");
 
       if (!wrapper || !link) {
         console.warn("[convite] Elementos do botão não encontrados.");
         return;
       }
 
-      // Monta o link de cadastro
       link.href = "cadastro.html?token=" + encodeURIComponent(token);
-
-      // Mostra o botão imediatamente (sem esperar validação)
       wrapper.classList.add("visible");
-      note.textContent = "Convite detectado. Clique para continuar.";
 
-      // Validação OPCIONAL em paralelo (só para mostrar a data de expiração).
-      // O botão já funciona mesmo se isso falhar.
-      if (window.db && typeof window.db.rpc === "function") {
-        window.db.rpc("validar_convite", { p_token: token })
-          .then(function (result) {
-            const data = result && result.data;
-            if (!data || !data.valido) {
-              note.textContent = "Atenção: este convite parece inválido ou expirado.";
-              return;
-            }
-            if (data.expira_em) {
-              const expira = new Date(data.expira_em);
-              note.textContent =
-                "Convite válido até " +
-                expira.toLocaleString("pt-BR", {
-                  dateStyle: "short",
-                  timeStyle: "short"
-                });
-            } else {
-              note.textContent = "Convite válido.";
-            }
-          })
-          .catch(function (err) {
-            console.warn("[convite] Validação opcional falhou:", err);
-          });
-      }
+      console.log("[convite] Botão exibido com href:", link.href);
     })();
   </script>
 

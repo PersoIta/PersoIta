@@ -175,7 +175,7 @@
   </style>
 </head>
 
-<body>
+<body data-page="cadastro">
 
   <div class="signup-page">
     <div class="signup-card">
@@ -186,13 +186,12 @@
 
       <div class="signup-header">
         <h1>Criar nova loja</h1>
-        <p id="signupSubtitle">Validando convite...</p>
+        <p>Preencha os dados abaixo. A validação do convite será feita ao confirmar.</p>
       </div>
 
       <div id="signupMessage"></div>
 
-      <!-- Formulário (só aparece após validação) -->
-      <form id="signupForm" class="hidden">
+      <form id="signupForm">
         <div class="form-group">
           <label for="storeName">Nome da loja</label>
           <input type="text" id="storeName" placeholder="Ex.: Loja Centro" required>
@@ -220,7 +219,7 @@
 
         <div class="form-group">
           <label for="adminPassword">Senha</label>
-          <input type="password" id="adminPassword" placeholder="Mínimo 6 caracteres" required>
+          <input type="password" id="adminPassword" placeholder="Mínimo 6 caracteres" minlength="6" required>
         </div>
 
         <button type="submit" class="btn-primary" id="signupSubmit">
@@ -237,159 +236,165 @@
   <script src="app.js"></script>
 
   <script>
-    (async function validarConviteNoCadastro() {
-      const message   = document.getElementById("signupMessage");
-      const subtitle  = document.getElementById("signupSubtitle");
-      const form      = document.getElementById("signupForm");
+    /* =========================================================
+       CADASTRO DE LOJA
+       1) Mostra o formulário sempre (se houver token na URL).
+       2) Ao clicar em "Criar loja":
+          - valida o convite (validar_convite)
+          - cria o usuário no Auth (signUp)
+          - insere a loja em gestao_loja_lojas
+          - insere o usuário em gestao_loja_usuarios
+          - marca o convite como usado
+       ========================================================= */
 
-      function showMessage(text, type) {
-        message.innerHTML =
-          '<div class="message ' + (type || "info") + '">' +
-          text +
-          "</div>";
-      }
+    const signupMessage = document.getElementById("signupMessage");
+    const signupForm    = document.getElementById("signupForm");
+    const signupSubmit  = document.getElementById("signupSubmit");
 
-      // 1) Lê o token da URL
+    function showMessage(text, type) {
+      if (!signupMessage) return;
+      signupMessage.innerHTML =
+        '<div class="message ' + (type || "info") + '">' +
+        String(text) +
+        "</div>";
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
       const token = new URLSearchParams(location.search).get("token");
 
       if (!token) {
-        subtitle.textContent = "Nenhum convite informado.";
-        showMessage("Esta página precisa de um convite válido.", "error");
+        showMessage("Esta página precisa de um convite válido (?token=...).", "error");
+        if (signupForm) signupForm.classList.add("hidden");
         return;
       }
 
-      // 2) Aguarda window.db (criado pelo app.js)
-      let tentativas = 0;
-      while (!window.db && tentativas < 20) {
-        await new Promise(r => setTimeout(r, 150));
-        tentativas++;
-      }
+      // Só para avisar o usuário — a validação de verdade acontece no submit
+      showMessage("Preencha os dados da nova loja.", "info");
+    });
 
-      if (!window.db) {
-        subtitle.textContent = "Erro de conexão.";
-        showMessage("Não foi possível conectar ao servidor.", "error");
-        return;
-      }
-
-      // 3) Valida o convite
-      try {
-        const { data, error } = await window.db.rpc("validar_convite", {
-          p_token: token
-        });
-
-        if (error) {
-          subtitle.textContent = "Erro ao validar convite.";
-          showMessage("Erro: " + (error.message || "desconhecido"), "error");
-          return;
-        }
-
-        if (!data || !data.valido) {
-          subtitle.textContent = "Convite inválido.";
-          const motivo = data && data.motivo ? data.motivo : "desconhecido";
-          const mensagens = {
-            nao_encontrado: "Convite não encontrado.",
-            inativo: "Este convite foi desativado.",
-            ja_usado: "Este convite já foi utilizado.",
-            expirado: "Este convite expirou."
-          };
-          showMessage(mensagens[motivo] || "Convite inválido.", "error");
-          return;
-        }
-
-        // 4) Convite válido → mostra o formulário
-        subtitle.textContent = "Preencha os dados da nova loja.";
-
-        if (data.expira_em) {
-          const expira = new Date(data.expira_em);
-          showMessage(
-            "Convite válido até " +
-            expira.toLocaleString("pt-BR", {
-              dateStyle: "short",
-              timeStyle: "short"
-            }),
-            "success"
-          );
-        }
-
-        form.classList.remove("hidden");
-
-      } catch (e) {
-        console.error("Erro ao validar convite:", e);
-        subtitle.textContent = "Erro inesperado.";
-        showMessage("Erro inesperado ao validar convite.", "error");
-      }
-    })();
-
-    // Submit do formulário (placeholder — adapte para sua lógica de criação)
-    document.addEventListener("DOMContentLoaded", function () {
-      const form = document.getElementById("signupForm");
-      if (!form) return;
-
-      form.addEventListener("submit", async function (e) {
+    if (signupForm) {
+      signupForm.addEventListener("submit", async function (e) {
         e.preventDefault();
 
         const token = new URLSearchParams(location.search).get("token");
-        const submit = document.getElementById("signupSubmit");
-        const message = document.getElementById("signupMessage");
-
-        if (submit) {
-          submit.disabled = true;
-          submit.textContent = "Criando...";
+        if (!token) {
+          showMessage("Token ausente na URL.", "error");
+          return;
         }
+
+        if (!window.db) {
+          showMessage("Conexão com o servidor indisponível. Recarregue a página.", "error");
+          return;
+        }
+
+        signupSubmit.disabled = true;
+        signupSubmit.textContent = "Criando...";
+        showMessage("Processando...", "info");
+
+        const storeName     = document.getElementById("storeName").value.trim();
+        const storeCnpj     = document.getElementById("storeCnpj").value.trim();
+        const storePhone    = document.getElementById("storePhone").value.trim();
+        const adminName     = document.getElementById("adminName").value.trim();
+        const adminEmail    = document.getElementById("adminEmail").value.trim();
+        const adminPassword = document.getElementById("adminPassword").value;
 
         try {
-          const storeName = document.getElementById("storeName").value.trim();
-          const cnpj      = document.getElementById("storeCnpj").value.trim();
-          const phone     = document.getElementById("storePhone").value.trim();
-          const adminName = document.getElementById("adminName").value.trim();
-          const adminEmail = document.getElementById("adminEmail").value.trim();
-          const adminPassword = document.getElementById("adminPassword").value;
+          // 1) Validar convite
+          const valid = await window.db.rpc("validar_convite", { p_token: token });
 
-          // ⚠️ ADAPTE: chame aqui a função/Edge Function que cria a loja
-          // Exemplo (se existir RPC no banco):
-          // const { data, error } = await window.db.rpc("criar_loja_com_convite", {
-          //   p_token: token,
-          //   p_nome: storeName,
-          //   p_cnpj: cnpj,
-          //   p_telefone: phone,
-          //   p_admin_nome: adminName,
-          //   p_admin_email: adminEmail,
-          //   p_admin_senha: adminPassword
-          // });
-          //
-          // if (error || !data || !data.ok) {
-          //   throw new Error(error?.message || data?.erro || "Erro ao criar loja.");
-          // }
+          if (valid.error) {
+            throw new Error("Erro ao validar convite: " + valid.error.message);
+          }
 
-          console.log("Dados prontos para envio:", {
-            token, storeName, cnpj, phone, adminName, adminEmail
+          if (!valid.data || !valid.data.valido) {
+            const motivo = (valid.data && valid.data.motivo) || "desconhecido";
+            const mensagens = {
+              nao_encontrado: "Convite não encontrado.",
+              inativo: "Este convite foi desativado.",
+              ja_usado: "Este convite já foi utilizado.",
+              expirado: "Este convite expirou."
+            };
+            throw new Error(mensagens[motivo] || "Convite inválido.");
+          }
+
+          // 2) Criar usuário no Auth
+          const signUp = await window.db.auth.signUp({
+            email: adminEmail,
+            password: adminPassword,
+            options: { data: { nome: adminName } }
           });
 
-          if (message) {
-            message.innerHTML =
-              '<div class="message success">Loja criada com sucesso! Redirecionando...</div>';
+          if (signUp.error) {
+            throw new Error("Erro ao criar usuário: " + signUp.error.message);
           }
 
-          setTimeout(() => {
+          const userId = signUp.data.user && signUp.data.user.id;
+          if (!userId) {
+            throw new Error("Usuário criado, mas sem ID. Verifique a confirmação de e-mail no Supabase.");
+          }
+
+          // 3) Inserir loja
+          const lojaInsert = await window.db
+            .from("gestao_loja_lojas")
+            .insert({
+              nome_fantasia: storeName,
+              cnpj: storeCnpj || null,
+              telefone: storePhone || null,
+              email: adminEmail
+            })
+            .select("id_loja")
+            .single();
+
+          if (lojaInsert.error) {
+            throw new Error("Erro ao criar loja: " + lojaInsert.error.message);
+          }
+
+          const idLoja = lojaInsert.data.id_loja;
+
+          // 4) Inserir usuário vinculado à loja
+          const usuarioInsert = await window.db
+            .from("gestao_loja_usuarios")
+            .insert({
+              id: userId,
+              id_loja: idLoja,
+              nome: adminName,
+              email: adminEmail,
+              perfil: "admin",
+              ativo: true
+            });
+
+          if (usuarioInsert.error) {
+            throw new Error("Erro ao vincular usuário à loja: " + usuarioInsert.error.message);
+          }
+
+          // 5) Marcar convite como usado
+          const usado = await window.db
+            .from("gestao_loja_convites")
+            .update({
+              usado_em: new Date().toISOString(),
+              usado_por_loja: idLoja,
+              ativo: false
+            })
+            .eq("token", token);
+
+          if (usado.error) {
+            console.warn("Aviso: convite não foi marcado como usado:", usado.error);
+          }
+
+          showMessage("Loja criada com sucesso! Redirecionando para o login...", "success");
+
+          setTimeout(function () {
             window.location.href = "index.html";
-          }, 1500);
+          }, 1800);
 
         } catch (err) {
-          console.error("Erro ao criar loja:", err);
-          if (message) {
-            message.innerHTML =
-              '<div class="message error">' +
-              (err.message || "Erro ao criar loja.") +
-              "</div>";
-          }
-        } finally {
-          if (submit) {
-            submit.disabled = false;
-            submit.textContent = "Criar loja";
-          }
+          console.error("Erro no cadastro:", err);
+          showMessage(err.message || "Erro ao criar loja.", "error");
+          signupSubmit.disabled = false;
+          signupSubmit.textContent = "Criar loja";
         }
       });
-    });
+    }
   </script>
 
 </body>
