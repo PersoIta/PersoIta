@@ -25,6 +25,26 @@ function isLojaMatriz() {
 }
 
 window.db = db;
+(function setFavicon() {
+  const href = 'logo.png'; // ajuste o caminho se necessário
+
+  // Remove favicons antigos para evitar duplicados
+  document
+    .querySelectorAll("link[rel*='icon']")
+    .forEach(el => el.remove());
+
+  const link = document.createElement('link');
+  link.rel = 'icon';
+  link.type = 'image/png';
+  link.href = href;
+  document.head.appendChild(link);
+
+  // Bônus: apple-touch-icon
+  const apple = document.createElement('link');
+  apple.rel = 'apple-touch-icon';
+  apple.href = href;
+  document.head.appendChild(apple);
+})();
 
 function $(id) {
   return document.getElementById(id);
