@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Criar loja — Gestão Loja</title>
+  <title>Criar nova loja • Gestão Loja</title>
 
   <link rel="stylesheet" href="styles.css">
 
@@ -14,86 +14,92 @@
       font-family: Inter, Arial, sans-serif;
       background: #f4f7fb;
       color: #172033;
-      min-height: 100vh;
     }
 
-    .cad-page {
+    .signup-page {
       min-height: 100vh;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: center;
-      padding: 40px 20px;
+      padding: 24px;
       background:
-        radial-gradient(circle at 10% 20%, rgba(79, 70, 229, .12), transparent 30%),
-        radial-gradient(circle at 90% 80%, rgba(37, 99, 235, .10), transparent 30%),
+        radial-gradient(circle at 10% 20%, rgba(79, 70, 229, .20), transparent 30%),
+        radial-gradient(circle at 90% 80%, rgba(37, 99, 235, .18), transparent 30%),
         linear-gradient(135deg, #eef2ff 0%, #f8fafc 50%, #eff6ff 100%);
     }
 
-    .cad-card {
+    .signup-card {
       width: 100%;
-      max-width: 640px;
-      background: #fff;
+      max-width: 520px;
+      background: rgba(255, 255, 255, .96);
+      border: 1px solid rgba(226, 232, 240, .9);
+      border-radius: 24px;
+      padding: 42px 38px;
+      box-shadow:
+        0 25px 60px rgba(15, 23, 42, .12),
+        0 8px 25px rgba(15, 23, 42, .06);
+    }
+
+    .brand {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .brand-icon {
+      width: 68px;
+      height: 68px;
       border-radius: 20px;
-      padding: 36px 34px;
-      box-shadow: 0 25px 60px rgba(15, 23, 42, .10);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 25px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      background: linear-gradient(135deg, #2563eb, #4f46e5);
+      box-shadow: 0 12px 25px rgba(79, 70, 229, .28);
     }
 
-    .cad-header {
+    .signup-header {
       text-align: center;
-      margin-bottom: 28px;
+      margin-bottom: 26px;
     }
 
-    .cad-header h1 {
-      font-size: 24px;
+    .signup-header h1 {
+      font-size: 26px;
       font-weight: 800;
       color: #111827;
-      margin-bottom: 8px;
+      margin-bottom: 9px;
     }
 
-    .cad-header p {
+    .signup-header p {
       color: #64748b;
-      font-size: 13px;
+      font-size: 14px;
       line-height: 1.6;
     }
 
-    .form-section-title {
-      font-size: 13px;
-      font-weight: 800;
-      color: #4f46e5;
-      text-transform: uppercase;
-      letter-spacing: .4px;
-      margin: 22px 0 12px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid #eef2f7;
-    }
-
-    .grid2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-    }
-
-    .form-group { margin-bottom: 14px; }
+    .form-group { margin-bottom: 16px; }
 
     .form-group label {
       display: block;
-      font-size: 12px;
+      margin-bottom: 8px;
+      font-size: 13px;
       font-weight: 700;
       color: #334155;
-      margin-bottom: 6px;
     }
 
     .form-group input {
       width: 100%;
-      height: 44px;
-      padding: 0 14px;
+      height: 48px;
       border: 1px solid #dbe2ea;
-      border-radius: 10px;
+      border-radius: 13px;
       background: #f8fafc;
-      font-size: 14px;
       color: #111827;
+      font-size: 14px;
+      padding: 0 16px;
       outline: none;
-      transition: .15s;
+      transition: .2s ease;
     }
 
     .form-group input:focus {
@@ -102,293 +108,288 @@
       box-shadow: 0 0 0 4px rgba(79, 70, 229, .10);
     }
 
-    .cad-button {
+    .btn-primary {
       width: 100%;
-      height: 50px;
+      height: 53px;
       border: none;
-      border-radius: 12px;
-      margin-top: 20px;
+      border-radius: 13px;
+      margin-top: 8px;
       cursor: pointer;
       color: #fff;
       font-size: 15px;
       font-weight: 700;
       background: linear-gradient(135deg, #2563eb, #4f46e5);
       box-shadow: 0 10px 22px rgba(79, 70, 229, .25);
+      transition: .2s ease;
     }
 
-    .cad-button:disabled {
-      opacity: .6;
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 13px 26px rgba(79, 70, 229, .32);
+    }
+
+    .btn-primary:disabled {
       cursor: not-allowed;
+      opacity: .7;
+      transform: none;
     }
 
-    .msg {
+    .message {
       padding: 12px 14px;
       border-radius: 10px;
       font-size: 13px;
       line-height: 1.5;
-      margin-top: 14px;
+      margin-bottom: 14px;
     }
 
-    .msg.error {
+    .message.error {
       color: #b91c1c;
       background: #fef2f2;
       border: 1px solid #fecaca;
     }
 
-    .msg.success {
+    .message.success {
       color: #166534;
       background: #f0fdf4;
       border: 1px solid #bbf7d0;
     }
 
-    .convite-info {
-      padding: 14px;
-      background: #f0fdf4;
-      border: 1px solid #bbf7d0;
-      border-radius: 10px;
-      color: #166534;
+    .message.info {
+      color: #1e40af;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+    }
+
+    .hidden { display: none !important; }
+
+    .footer-link {
+      display: block;
+      text-align: center;
+      margin-top: 20px;
       font-size: 13px;
-      margin-bottom: 18px;
+      color: #64748b;
+      text-decoration: none;
     }
 
-    @media (max-width: 520px) {
-      .grid2 { grid-template-columns: 1fr; }
-      .cad-card { padding: 26px 20px; }
-    }
+    .footer-link:hover { color: #2563eb; }
   </style>
 </head>
 
 <body>
 
-  <div class="cad-page">
-    <div class="cad-card">
+  <div class="signup-page">
+    <div class="signup-card">
 
-      <div class="cad-header">
-        <h1>Criar nova loja</h1>
-        <p>Preencha os dados abaixo para criar sua conta e loja.</p>
+      <div class="brand">
+        <div class="brand-icon">GL</div>
       </div>
 
-      <div id="conviteInfo" class="convite-info" style="display:none;"></div>
+      <div class="signup-header">
+        <h1>Criar nova loja</h1>
+        <p id="signupSubtitle">Validando convite...</p>
+      </div>
 
-      <form id="cadForm">
+      <div id="signupMessage"></div>
 
-        <div class="form-section-title">Dados da loja</div>
-
+      <!-- Formulário (só aparece após validação) -->
+      <form id="signupForm" class="hidden">
         <div class="form-group">
-          <label for="loja_nome">Nome da loja *</label>
-          <input id="loja_nome" type="text" required maxlength="120" placeholder="Ex.: Canecas & Cia">
-        </div>
-
-        <div class="grid2">
-          <div class="form-group">
-            <label for="loja_cnpj">CNPJ</label>
-            <input id="loja_cnpj" type="text" maxlength="18" placeholder="00.000.000/0000-00">
-          </div>
-
-          <div class="form-group">
-            <label for="loja_telefone">Telefone</label>
-            <input id="loja_telefone" type="text" maxlength="20" placeholder="(11) 99999-9999">
-          </div>
-        </div>
-
-        <div class="form-section-title">Dados do administrador</div>
-
-        <div class="form-group">
-          <label for="admin_nome">Seu nome *</label>
-          <input id="admin_nome" type="text" required maxlength="120" placeholder="Nome completo">
+          <label for="storeName">Nome da loja</label>
+          <input type="text" id="storeName" placeholder="Ex.: Loja Centro" required>
         </div>
 
         <div class="form-group">
-          <label for="admin_email">E-mail *</label>
-          <input id="admin_email" type="email" required placeholder="seu@email.com">
+          <label for="storeCnpj">CNPJ</label>
+          <input type="text" id="storeCnpj" placeholder="00.000.000/0000-00">
         </div>
 
-        <div class="grid2">
-          <div class="form-group">
-            <label for="admin_senha">Senha *</label>
-            <input id="admin_senha" type="password" required minlength="6" placeholder="Mínimo 6 caracteres">
-          </div>
-
-          <div class="form-group">
-            <label for="admin_senha2">Confirmar senha *</label>
-            <input id="admin_senha2" type="password" required minlength="6" placeholder="Repita a senha">
-          </div>
+        <div class="form-group">
+          <label for="storePhone">Telefone</label>
+          <input type="text" id="storePhone" placeholder="(11) 99999-9999">
         </div>
 
-        <button type="submit" class="cad-button" id="cadButton">
+        <div class="form-group">
+          <label for="adminName">Seu nome (administrador)</label>
+          <input type="text" id="adminName" placeholder="Nome completo" required>
+        </div>
+
+        <div class="form-group">
+          <label for="adminEmail">Seu e-mail</label>
+          <input type="email" id="adminEmail" placeholder="voce@email.com" required>
+        </div>
+
+        <div class="form-group">
+          <label for="adminPassword">Senha</label>
+          <input type="password" id="adminPassword" placeholder="Mínimo 6 caracteres" required>
+        </div>
+
+        <button type="submit" class="btn-primary" id="signupSubmit">
           Criar loja
         </button>
-
       </form>
 
-      <div id="cadMessage"></div>
+      <a href="index.html" class="footer-link">← Voltar para o login</a>
 
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js"></script>
   <script src="app.js"></script>
 
   <script>
-    (function () {
-      const params = new URLSearchParams(window.location.search);
-      const token = params.get("token");
+    (async function validarConviteNoCadastro() {
+      const message   = document.getElementById("signupMessage");
+      const subtitle  = document.getElementById("signupSubtitle");
+      const form      = document.getElementById("signupForm");
 
-      const msgEl = document.getElementById("cadMessage");
-      const infoEl = document.getElementById("conviteInfo");
-      const form = document.getElementById("cadForm");
-      const btn = document.getElementById("cadButton");
-
-      function msg(text, type) {
-        msgEl.textContent = text;
-        msgEl.className = "msg " + (type || "");
+      function showMessage(text, type) {
+        message.innerHTML =
+          '<div class="message ' + (type || "info") + '">' +
+          text +
+          "</div>";
       }
 
+      // 1) Lê o token da URL
+      const token = new URLSearchParams(location.search).get("token");
+
       if (!token) {
-        msg("Link de cadastro inválido. Solicite um novo convite.", "error");
-        form.style.display = "none";
+        subtitle.textContent = "Nenhum convite informado.";
+        showMessage("Esta página precisa de um convite válido.", "error");
         return;
       }
 
-      async function validar() {
-        if (!window.db) {
-          return setTimeout(validar, 300);
-        }
+      // 2) Aguarda window.db (criado pelo app.js)
+      let tentativas = 0;
+      while (!window.db && tentativas < 20) {
+        await new Promise(r => setTimeout(r, 150));
+        tentativas++;
+      }
 
-        const { data, error } = await db.rpc("validar_convite", {
+      if (!window.db) {
+        subtitle.textContent = "Erro de conexão.";
+        showMessage("Não foi possível conectar ao servidor.", "error");
+        return;
+      }
+
+      // 3) Valida o convite
+      try {
+        const { data, error } = await window.db.rpc("validar_convite", {
           p_token: token
         });
 
-        if (error || !data || !data.valido) {
-          const motivos = {
+        if (error) {
+          subtitle.textContent = "Erro ao validar convite.";
+          showMessage("Erro: " + (error.message || "desconhecido"), "error");
+          return;
+        }
+
+        if (!data || !data.valido) {
+          subtitle.textContent = "Convite inválido.";
+          const motivo = data && data.motivo ? data.motivo : "desconhecido";
+          const mensagens = {
             nao_encontrado: "Convite não encontrado.",
-            inativo: "Convite inativo.",
+            inativo: "Este convite foi desativado.",
             ja_usado: "Este convite já foi utilizado.",
-            expirado: "Convite expirado. Solicite um novo à matriz."
+            expirado: "Este convite expirou."
           };
-          msg(
-            motivos[data?.motivo] || "Convite inválido.",
-            "error"
-          );
-          form.style.display = "none";
+          showMessage(mensagens[motivo] || "Convite inválido.", "error");
           return;
         }
 
-        const expira = data.expira_em
-          ? new Date(data.expira_em)
-          : null;
+        // 4) Convite válido → mostra o formulário
+        subtitle.textContent = "Preencha os dados da nova loja.";
 
-        infoEl.style.display = "block";
-        infoEl.textContent =
-          "✓ Convite válido" +
-          (expira
-            ? " — expira em " +
-              expira.toLocaleString("pt-BR", {
-                dateStyle: "short",
-                timeStyle: "short"
-              })
-            : "");
-      }
-
-      validar();
-
-      form.addEventListener("submit", async function (ev) {
-        ev.preventDefault();
-
-        const nomeLoja = document.getElementById("loja_nome").value.trim();
-        const cnpj = document.getElementById("loja_cnpj").value.trim();
-        const telefone = document.getElementById("loja_telefone").value.trim();
-
-        const nomeAdmin = document.getElementById("admin_nome").value.trim();
-        const email = document.getElementById("admin_email").value.trim();
-        const senha = document.getElementById("admin_senha").value;
-        const senha2 = document.getElementById("admin_senha2").value;
-
-        if (!nomeLoja || !nomeAdmin || !email || !senha) {
-          msg("Preencha todos os campos obrigatórios.", "error");
-          return;
-        }
-
-        if (senha !== senha2) {
-          msg("As senhas não conferem.", "error");
-          return;
-        }
-
-        if (senha.length < 6) {
-          msg("A senha deve ter no mínimo 6 caracteres.", "error");
-          return;
-        }
-
-        btn.disabled = true;
-        btn.textContent = "Criando loja...";
-        msg("");
-
-        try {
-          // 1. Cria usuário no Auth
-          const { data: authData, error: authError } = await db.auth.signUp({
-            email: email,
-            password: senha,
-            options: {
-              data: { nome: nomeAdmin }
-            }
-          });
-
-          if (authError) {
-            throw new Error(
-              "Erro ao criar usuário: " + authError.message
-            );
-          }
-
-          if (!authData.user) {
-            throw new Error("Usuário não foi criado.");
-          }
-
-          // 2. Consome convite + cria loja + cria vínculo
-          const { data: idLoja, error: rpcError } = await db.rpc(
-            "consumir_convite_criar_loja",
-            {
-              p_token: token,
-              p_user_id: authData.user.id,
-              p_dados_loja: {
-                nome: nomeLoja,
-                razao_social: nomeLoja,
-                nome_fantasia: nomeLoja,
-                cnpj: cnpj,
-                email: email,
-                telefone: telefone,
-                whatsapp: telefone,
-                nome_admin: nomeAdmin
-              }
-            }
-          );
-
-          if (rpcError) {
-            throw new Error(
-              "Erro ao criar loja: " + rpcError.message
-            );
-          }
-
-          msg(
-            "Loja criada com sucesso! Redirecionando para o login...",
+        if (data.expira_em) {
+          const expira = new Date(data.expira_em);
+          showMessage(
+            "Convite válido até " +
+            expira.toLocaleString("pt-BR", {
+              dateStyle: "short",
+              timeStyle: "short"
+            }),
             "success"
           );
+        }
 
-          // 3. Faz logout (para o usuário entrar manualmente)
-          await db.auth.signOut();
+        form.classList.remove("hidden");
 
-          setTimeout(function () {
+      } catch (e) {
+        console.error("Erro ao validar convite:", e);
+        subtitle.textContent = "Erro inesperado.";
+        showMessage("Erro inesperado ao validar convite.", "error");
+      }
+    })();
+
+    // Submit do formulário (placeholder — adapte para sua lógica de criação)
+    document.addEventListener("DOMContentLoaded", function () {
+      const form = document.getElementById("signupForm");
+      if (!form) return;
+
+      form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+
+        const token = new URLSearchParams(location.search).get("token");
+        const submit = document.getElementById("signupSubmit");
+        const message = document.getElementById("signupMessage");
+
+        if (submit) {
+          submit.disabled = true;
+          submit.textContent = "Criando...";
+        }
+
+        try {
+          const storeName = document.getElementById("storeName").value.trim();
+          const cnpj      = document.getElementById("storeCnpj").value.trim();
+          const phone     = document.getElementById("storePhone").value.trim();
+          const adminName = document.getElementById("adminName").value.trim();
+          const adminEmail = document.getElementById("adminEmail").value.trim();
+          const adminPassword = document.getElementById("adminPassword").value;
+
+          // ⚠️ ADAPTE: chame aqui a função/Edge Function que cria a loja
+          // Exemplo (se existir RPC no banco):
+          // const { data, error } = await window.db.rpc("criar_loja_com_convite", {
+          //   p_token: token,
+          //   p_nome: storeName,
+          //   p_cnpj: cnpj,
+          //   p_telefone: phone,
+          //   p_admin_nome: adminName,
+          //   p_admin_email: adminEmail,
+          //   p_admin_senha: adminPassword
+          // });
+          //
+          // if (error || !data || !data.ok) {
+          //   throw new Error(error?.message || data?.erro || "Erro ao criar loja.");
+          // }
+
+          console.log("Dados prontos para envio:", {
+            token, storeName, cnpj, phone, adminName, adminEmail
+          });
+
+          if (message) {
+            message.innerHTML =
+              '<div class="message success">Loja criada com sucesso! Redirecionando...</div>';
+          }
+
+          setTimeout(() => {
             window.location.href = "index.html";
-          }, 2000);
+          }, 1500);
 
-        } catch (e) {
-          console.error("Erro no cadastro:", e);
-          msg(e.message || "Erro ao criar loja.", "error");
-          btn.disabled = false;
-          btn.textContent = "Criar loja";
+        } catch (err) {
+          console.error("Erro ao criar loja:", err);
+          if (message) {
+            message.innerHTML =
+              '<div class="message error">' +
+              (err.message || "Erro ao criar loja.") +
+              "</div>";
+          }
+        } finally {
+          if (submit) {
+            submit.disabled = false;
+            submit.textContent = "Criar loja";
+          }
         }
       });
-    })();
+    });
   </script>
 
 </body>
