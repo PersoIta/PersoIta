@@ -1354,6 +1354,12 @@ function variationForm(v = {}) {
 /*
  * ==========================================================
  * FEEDBACK VISUAL AO TROCAR DE PRODUTO
+ *
+ * A herança REAL de custos/precificação/fiscais é feita
+ * pelos triggers SQL (BEFORE INSERT / UPDATE) no banco.
+ *
+ * A herança de IMAGEM é feita aqui no JS, porque o banco
+ * não tem trigger para isso.
  * ==========================================================
  */
 function onProductChange(productId) {
@@ -1388,6 +1394,10 @@ function onProductChange(productId) {
 
   }
 
+  /*
+   * Avisa se o produto já tem variações
+   * cadastradas (evita duplicidade).
+   */
   const jaTemVariacoes =
     variations.some(function(v) {
 
@@ -1402,6 +1412,7 @@ function onProductChange(productId) {
 
   /* ----- Preenchimento visual básico ----- */
 
+  // Nome e descrição (só se vazios — feedback)
   const nomeInput = $("v_nome");
   if (nomeInput && !nomeInput.value.trim()) {
     nomeInput.value = product.nome || "";
@@ -1412,6 +1423,7 @@ function onProductChange(productId) {
     descInput.value = product.descricao || "";
   }
 
+  // Flags
   const catInput = $("v_catalogo");
   if (catInput) {
     catInput.checked = product.exibir_catalogo !== false;
@@ -1422,6 +1434,8 @@ function onProductChange(productId) {
     ativoInput.checked = product.ativo !== false;
   }
 
+  // Preenche visualmente os campos que o banco vai herdar
+  // (apenas quando o usuário ainda não tocou neles)
   const preencherSeVazio = function(id, valor) {
     const el = $(id);
     if (!el || valor === null || valor === undefined) return;
@@ -1440,6 +1454,7 @@ function onProductChange(productId) {
   preencherSeVazio("prec_impostos",     product.precificacao_impostos_percentual);
   preencherSeVazio("prec_despesas",     product.precificacao_despesas_percentual);
 
+  // Margem: default 30 → herda do produto se ainda estiver em 30
   const margemEl = $("prec_margem");
   if (margemEl) {
     const margemAtual = Number(margemEl.value);
@@ -1451,6 +1466,7 @@ function onProductChange(productId) {
     }
   }
 
+  // Campos fiscais (só se vazios)
   const preencherTexto = function(id, valor) {
     const el = $(id);
     if (!el || valor === null || valor === undefined) return;
@@ -1471,6 +1487,43 @@ function onProductChange(productId) {
   const origEl = $("v_origem_mercadoria");
   if (origEl && (!origEl.value || origEl.value === "0")) {
     if (product.origem_mercadoria) origEl.value = product.origem_mercadoria;
+  }
+
+  // ============================================================
+  // HERANÇA DE IMAGEM DO PRODUTO
+  //
+  // Só herda se:
+  //   - está criando uma NOVA variação (não é edição)
+  //   - o produto tem imagem_principal
+  //   - o usuário ainda NÃO escolheu uma imagem nova
+  //   - o usuário ainda NÃO removeu manualmente
+  //
+  // Como a imagem é a MESMA URL do produto, se depois o usuário
+  // remover a imagem da variação, ela NÃO deve ser apagada do
+  // bucket (pertence ao produto). Por isso currentImageUrl é
+  // setado, mas a exclusão no saveVariation fica condicionada
+  // a ter havido upload próprio (ver saveVariation).
+  // ============================================================
+  const estaCriandoNova = !editingVariationId;
+
+  if (estaCriandoNova && product.imagem_principal) {
+
+    const semArquivoNovo = !$("v_imagem")?.files?.[0];
+
+    if (semArquivoNovo) {
+
+      const preview = $("imagePreview");
+      const container = $("imagePreviewContainer");
+      const fileNameEl = $("imageFileName");
+
+      if (preview) preview.src = product.imagem_principal;
+      if (container) container.style.display = "block";
+      if (fileNameEl) fileNameEl.textContent = "Imagem herdada do produto";
+
+      currentImageUrl = product.imagem_principal;
+
+    }
+
   }
 
   atualizarPrecificacao();
@@ -1769,6 +1822,7 @@ async function saveVariation(ev, id) {
 
   }
 
+  // Valida NCM (se preenchido)
   const ncmValue =
     $("v_ncm").value.replace(/\D/g, "");
 
@@ -1783,6 +1837,7 @@ async function saveVariation(ev, id) {
 
   }
 
+  // Recalcula a precificação para garantir consistência
   atualizarPrecificacao();
 
   const precResultado = calcularPrecificacao({

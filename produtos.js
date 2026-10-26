@@ -3,6 +3,28 @@ let categories = [];
 
 
 /*
+ * ============================================================
+ * CONTROLES DE IMAGEM DO PRODUTO
+ * ============================================================
+ */
+
+// URL atualmente vinculada ao formulário
+let currentProductImageUrl = null;
+
+// URL original do produto (para apagar do bucket ao trocar/remover)
+let productImageOriginalUrl = null;
+
+// Se o usuário clicou em "Remover imagem"
+let productImageRemoved = false;
+
+// Arquivo escolhido (ainda não enviado ao bucket)
+let productImageNewFile = null;
+
+// URL da imagem nova já enviada (para rollback se o save falhar)
+let productImageNewUrl = null;
+
+
+/*
  * Gera um SKU único por loja no formato:
  *   PREFIXO-NNNNN
  * Ex.: CAM-00001
@@ -297,6 +319,218 @@ function aplicarPrecoSugerido() {
 
 
 /* ======================================================
+   IMAGEM DO PRODUTO
+   ====================================================== */
+
+/**
+ * Extrai o caminho do bucket a partir da URL pública.
+ * Ex.: https://xxx.supabase.co/storage/v1/object/public/produtos/1/produtos/abc.jpg
+ *   → "1/produtos/abc.jpg"
+ */
+function extrairCaminhoDoBucketProduto(url) {
+
+  if (!url) return null;
+
+  const marcador = "/object/public/produtos/";
+  const idx = url.indexOf(marcador);
+
+  if (idx === -1) return null;
+
+  return url.substring(idx + marcador.length);
+
+}
+
+
+/**
+ * Apaga um arquivo do bucket "produtos" a partir da URL pública.
+ * Retorna true se apagou (ou se não havia nada para apagar).
+ */
+async function apagarImagemDoBucketProduto(url) {
+
+  const caminho = extrairCaminhoDoBucketProduto(url);
+
+  if (!caminho) return true;
+
+  try {
+
+    const { error } = await db.storage
+      .from("produtos")
+      .remove([caminho]);
+
+    if (error) {
+      console.warn(
+        "Erro ao apagar imagem do produto do bucket:",
+        error
+      );
+      return false;
+    }
+
+    return true;
+
+  } catch (e) {
+
+    console.warn(
+      "Erro ao apagar imagem do produto do bucket:",
+      e
+    );
+
+    return false;
+
+  }
+
+}
+
+
+/**
+ * Faz upload da imagem do produto.
+ * Caminho: {id_loja}/produtos/{timestamp}_{random}.{ext}
+ */
+async function uploadProductImage(file) {
+
+  if (!file) return currentProductImageUrl;
+
+  const statusEl = $("uploadStatus");
+
+  if (statusEl) {
+    statusEl.style.display = "block";
+    statusEl.textContent = "Enviando imagem...";
+  }
+
+  const extension =
+    file.name.split(".").pop().toLowerCase();
+
+  const uniqueName =
+    Date.now() +
+    "_" +
+    Math.random().toString(36).substring(2, 10) +
+    "." +
+    extension;
+
+  const filePath =
+    currentStore.id_loja +
+    "/produtos/" +
+    uniqueName;
+
+  const upload = await db.storage
+    .from("produtos")
+    .upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: false
+    });
+
+  if (upload.error) {
+
+    if (statusEl) statusEl.style.display = "none";
+
+    throw upload.error;
+
+  }
+
+  const publicUrl = db.storage
+    .from("produtos")
+    .getPublicUrl(filePath);
+
+  if (statusEl) statusEl.textContent = "Imagem enviada.";
+
+  return publicUrl.data.publicUrl;
+
+}
+
+
+/**
+ * Preview de imagem escolhida pelo usuário.
+ */
+function previewProductImage(event) {
+
+  const file = event.target.files[0];
+
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+
+    alert("Selecione um arquivo de imagem.");
+
+    event.target.value = "";
+
+    return;
+
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+
+    alert("A imagem deve ter no máximo 5 MB.");
+
+    event.target.value = "";
+
+    return;
+
+  }
+
+  const fileNameEl = $("imageFileName");
+
+  if (fileNameEl) {
+    fileNameEl.textContent = file.name;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = function (e) {
+
+    const preview = $("imagePreview");
+    const container = $("imagePreviewContainer");
+
+    if (preview) preview.src = e.target.result;
+    if (container) container.style.display = "block";
+
+  };
+
+  reader.readAsDataURL(file);
+
+  productImageNewFile = file;
+  productImageRemoved = false;
+
+}
+
+
+/**
+ * Remove a imagem do produto.
+ * NÃO apaga do bucket aqui — só marca a intenção.
+ * A exclusão real acontece no saveProduct, após o banco confirmar.
+ */
+function removeProductImage() {
+
+  const input = $("p_imagem");
+
+  if (input) input.value = "";
+
+  const fileNameEl = $("imageFileName");
+
+  if (fileNameEl) {
+    fileNameEl.textContent =
+      "Nenhuma imagem selecionada";
+  }
+
+  const preview = $("imagePreview");
+
+  if (preview) {
+    preview.src = "";
+  }
+
+  const container = $("imagePreviewContainer");
+
+  if (container) {
+    container.style.display = "none";
+  }
+
+  productImageRemoved = true;
+  productImageNewFile = null;
+  productImageNewUrl = null;
+  currentProductImageUrl = null;
+
+}
+
+
+/* ======================================================
    CATEGORIA
    ====================================================== */
 
@@ -511,6 +745,8 @@ async function renderProducts() {
 
           <tr>
 
+            <th>Imagem</th>
+
             <th>Produto</th>
 
             <th>SKU</th>
@@ -543,9 +779,31 @@ async function renderProducts() {
 
               });
 
+            const imageCell =
+              p.imagem_principal
+                ? `
+                  <img
+                    src="${escapeHtml(p.imagem_principal)}"
+                    alt="${escapeHtml(p.nome)}"
+                    style="
+                      width:50px;
+                      height:50px;
+                      object-fit:cover;
+                      border-radius:8px;
+                      border:1px solid #ddd;
+                    ">
+                `
+                : '<span class="muted">—</span>';
+
             return `
 
               <tr>
+
+                <td>
+
+                  ${imageCell}
+
+                </td>
 
                 <td>
 
@@ -694,6 +952,79 @@ function productForm(p = {}) {
     precoSugerido: p.precificacao_preco_sugerido ?? 0
   };
 
+  // Preview da imagem (se já existir)
+  const imagePreview =
+    p.imagem_principal
+      ? `
+        <div
+          id="imagePreviewContainer"
+          style="
+            margin-top:15px;
+            text-align:center;
+          ">
+
+          <img
+            id="imagePreview"
+            src="${escapeHtml(p.imagem_principal)}"
+            alt="Imagem do produto"
+            style="
+              width:180px;
+              height:180px;
+              object-fit:cover;
+              border-radius:10px;
+              border:1px solid #ddd;
+            ">
+
+          <br>
+
+          <button
+            type="button"
+            class="btn btn-secondary"
+            style="margin-top:10px;"
+            onclick="removeProductImage()">
+
+            Remover imagem
+
+          </button>
+
+        </div>
+      `
+      : `
+        <div
+          id="imagePreviewContainer"
+          style="
+            display:none;
+            margin-top:15px;
+            text-align:center;
+          ">
+
+          <img
+            id="imagePreview"
+            src=""
+            alt="Pré-visualização"
+            style="
+              width:180px;
+              height:180px;
+              object-fit:cover;
+              border-radius:10px;
+              border:1px solid #ddd;
+            ">
+
+          <br>
+
+          <button
+            type="button"
+            class="btn btn-secondary"
+            style="margin-top:10px;"
+            onclick="removeProductImage()">
+
+            Remover imagem
+
+          </button>
+
+        </div>
+      `;
+
   return `
 
     <form
@@ -724,6 +1055,71 @@ function productForm(p = {}) {
           pelo sistema.
 
         </small>
+
+      </div>
+
+      <div style="margin-top:15px;">
+
+        <label>
+          Imagem do produto
+        </label>
+
+        <div
+          style="
+            border:2px dashed #d1d5db;
+            border-radius:10px;
+            padding:20px;
+            text-align:center;
+            margin-top:5px;
+          ">
+
+          <label
+            for="p_imagem"
+            class="btn btn-primary"
+            style="
+              display:inline-block;
+              cursor:pointer;
+            ">
+
+            Selecionar imagem
+
+          </label>
+
+          <input
+            type="file"
+            id="p_imagem"
+            accept="image/*"
+            style="display:none;"
+            onchange="previewProductImage(event)">
+
+          <div
+            id="imageFileName"
+            class="muted"
+            style="margin-top:10px;">
+
+            ${
+              p.imagem_principal
+                ? "Imagem atual"
+                : "Nenhuma imagem selecionada"
+            }
+
+          </div>
+
+          ${imagePreview}
+
+          <div
+            id="uploadStatus"
+            class="muted"
+            style="
+              display:none;
+              margin-top:10px;
+            ">
+
+            Enviando imagem...
+
+          </div>
+
+        </div>
 
       </div>
 
@@ -1360,6 +1756,13 @@ function productForm(p = {}) {
 
 function newProduct() {
 
+  // Reseta controles de imagem
+  currentProductImageUrl = null;
+  productImageOriginalUrl = null;
+  productImageRemoved = false;
+  productImageNewFile = null;
+  productImageNewUrl = null;
+
   openModal(
     "Novo produto",
     productForm({
@@ -1398,6 +1801,13 @@ function editProduct(id) {
     return;
 
   }
+
+  // Guarda URL original e reseta controles
+  currentProductImageUrl = p.imagem_principal || null;
+  productImageOriginalUrl = p.imagem_principal || null;
+  productImageRemoved = false;
+  productImageNewFile = null;
+  productImageNewUrl = null;
 
   openModal(
     "Editar produto",
@@ -1569,6 +1979,35 @@ async function saveProduct(ev, id) {
 
   try {
 
+    // ============================================================
+    // FLUXO DE IMAGEM
+    // ============================================================
+    let imagemPrincipalUrl = currentProductImageUrl;
+    let urlOriginalParaApagar = null;
+    let urlNovaParaApagar = null;
+
+    if (productImageNewFile) {
+
+      // Vai subir uma nova imagem → depois do save, apaga a antiga
+      const urlNova = await uploadProductImage(productImageNewFile);
+
+      urlOriginalParaApagar = productImageOriginalUrl || null;
+      productImageNewUrl = urlNova;
+      urlNovaParaApagar = urlNova;
+
+      imagemPrincipalUrl = urlNova;
+
+    } else if (productImageRemoved) {
+
+      // Vai remover a imagem → depois do save, apaga a antiga
+      urlOriginalParaApagar = productImageOriginalUrl || null;
+
+      imagemPrincipalUrl = null;
+
+    }
+
+    payload.imagem_principal = imagemPrincipalUrl || null;
+
     if (id) {
 
       // ===== EDIÇÃO =====
@@ -1650,6 +2089,18 @@ async function saveProduct(ev, id) {
 
     }
 
+    // Se o save deu certo, apaga a imagem antiga do bucket
+    if (urlOriginalParaApagar) {
+      await apagarImagemDoBucketProduto(urlOriginalParaApagar);
+    }
+
+    // Reseta controles de imagem
+    currentProductImageUrl = null;
+    productImageOriginalUrl = null;
+    productImageRemoved = false;
+    productImageNewFile = null;
+    productImageNewUrl = null;
+
     closeModal();
     await renderProducts();
 
@@ -1659,6 +2110,12 @@ async function saveProduct(ev, id) {
       "Erro ao salvar produto:",
       e
     );
+
+    // Se falhou e havia imagem nova enviada, apaga do bucket
+    if (urlNovaParaApagar) {
+      await apagarImagemDoBucketProduto(urlNovaParaApagar);
+      productImageNewUrl = null;
+    }
 
     alert(
       "Erro ao salvar produto:\n\n" +

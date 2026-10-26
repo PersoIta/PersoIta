@@ -146,12 +146,28 @@
     removendoLogo = false;
   });
 
+  /* ============================================================
+     REMOVER LOGO
+     ============================================================
+     Opção 1: confirma a intenção e só marca para remoção.
+     A exclusão real (banco + bucket) acontece ao clicar em
+     "Salvar alterações" (ver btnSalvar abaixo).
+     ============================================================ */
   btnRemoverLogo.addEventListener("click", function () {
+
+    const confirmado = confirm(
+      "Remover o logo da loja?\n\n" +
+      "O logo será apagado do banco e do armazenamento ao salvar as alterações."
+    );
+
+    if (!confirmado) return;
+
     logoNova = null;
     removendoLogo = true;
     logoInput.value = "";
     setLogoPreview(null);
     logoStatus.textContent = "Logo será removida ao salvar.";
+
   });
 
   /* ---------- Salvar ---------- */
