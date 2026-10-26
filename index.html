@@ -216,6 +216,7 @@
       font-size: 12px;
     }
 
+    /* Link "Cadastrar loja" (só aparece com convite válido) */
     .signup-link-wrapper {
       display: none;
       text-align: center;
@@ -244,6 +245,7 @@
       transform: translateY(-1px);
     }
 
+    /* Estado enquanto o convite ainda está sendo validado */
     .signup-link.loading {
       opacity: .6;
       cursor: wait;
@@ -335,6 +337,7 @@
 
         <div id="loginMessage"></div>
 
+        <!-- Link "Cadastrar loja" — só aparece se houver convite válido -->
         <div id="signupLinkWrapper" class="signup-link-wrapper">
           <a id="signupLink" class="signup-link loading" href="javascript:void(0)" aria-disabled="true">
             🎉 Criar nova loja
@@ -351,16 +354,10 @@
     </main>
   </div>
 
-  <!-- 1) Biblioteca Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- 2) Cria o client e expõe window.db ANTES do app.js -->
-  <script src="supabaseClient.js"></script>
-
-  <!-- 3) app.js (usa window.db) -->
   <script src="app.js"></script>
 
-  <!-- 4) Script de convite -->
+  <!-- Script de detecção de convite -->
   <script>
     (async function verificarConvite() {
       let tentativas = 0;
@@ -369,13 +366,16 @@
       const params = new URLSearchParams(window.location.search);
       const token = params.get("token");
 
+      // Se não há token, não há o que validar
       if (!token) return;
 
+      // Referências de elementos
       const wrapper = document.getElementById("signupLinkWrapper");
       const link    = document.getElementById("signupLink");
       const note    = document.getElementById("signupNote");
 
-      // Prepara o href imediatamente (defensivo)
+      // Já prepara o href imediatamente (defensivo),
+      // mas mantém o link bloqueado até validar
       link.href = "cadastro.html?token=" + encodeURIComponent(token);
 
       // Bloqueia cliques enquanto não validado
@@ -388,19 +388,17 @@
 
       async function tentar() {
         try {
+          // Aguarda window.db ficar disponível (com limite)
           if (!window.db) {
             tentativas++;
             if (tentativas > MAX_TENTATIVAS) {
-              console.error(
-                "window.db não disponível após " + MAX_TENTATIVAS +
-                " tentativas. Verifique supabaseClient.js e app.js."
-              );
+              console.error("window.db não disponível após " + MAX_TENTATIVAS + " tentativas. Verifique o app.js.");
               return;
             }
             return setTimeout(tentar, 300);
           }
 
-          const { data, error } = await window.db.rpc("validar_convite", {
+          const { data, error } = await db.rpc("validar_convite", {
             p_token: token
           });
 
@@ -414,6 +412,7 @@
             return;
           }
 
+          // Mostra data/hora de expiração
           if (data.expira_em) {
             const expira = new Date(data.expira_em);
             note.textContent =
@@ -424,6 +423,7 @@
               });
           }
 
+          // Libera o clique e mostra o link
           link.dataset.pronto = "1";
           link.classList.remove("loading");
           link.removeAttribute("aria-disabled");

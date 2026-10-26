@@ -1,3 +1,16 @@
+/* =========================================================
+   CONFIGURAÇÃO DO SUPABASE
+   Troque somente estes dois valores.
+   Use a chave ANON/PUBLISHABLE, NUNCA service_role.
+   ========================================================= */
+const SUPABASE_URL = "https://tzolokxetilunyfzovav.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_0HJWnbqDMg1LFwLuhaRLDg_FvEXwxZd";
+const { createClient } = supabase;
+const db = createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
+
 let currentUser = null;
 let currentStore = null;
 
@@ -11,23 +24,11 @@ function isLojaMatriz() {
   );
 }
 
-/* =========================================================
-   Garantia de `db`:
-   O ideal é que window.db já tenha sido criado em
-   supabaseClient.js ANTES deste arquivo.
-   ========================================================= */
-if (!window.db) {
-  console.error(
-    "[app.js] window.db não foi definido antes do app.js. " +
-    "Verifique se supabaseClient.js foi carregado antes."
-  );
-}
-
-const db = window.db;
-
+window.db = db;
 (function setFavicon() {
-  const href = 'logo.png';
+  const href = 'logo.png'; // ajuste o caminho se necessário
 
+  // Remove favicons antigos para evitar duplicados
   document
     .querySelectorAll("link[rel*='icon']")
     .forEach(el => el.remove());
@@ -38,6 +39,7 @@ const db = window.db;
   link.href = href;
   document.head.appendChild(link);
 
+  // Bônus: apple-touch-icon
   const apple = document.createElement('link');
   apple.rel = 'apple-touch-icon';
   apple.href = href;
@@ -523,6 +525,9 @@ async function loadMenu() {
         "Loja";
     }
 
+    // =========================================================
+    // MENU CONDICIONAL: item "Convites" só para a loja matriz
+    // =========================================================
     const convitesNav = menu.querySelector(
       '[data-page="convites"]'
     );
@@ -722,6 +727,11 @@ async function initDashboard() {
   }
 }
 
+/**
+ * Páginas públicas: NÃO exigem login. O próprio script da
+ * página cuida da renderização. Porém, se houver sessão
+ * ativa, o menu lateral deve ser carregado normalmente.
+ */
 const PUBLIC_PAGES = [
   "catalogo"
 ];
@@ -741,6 +751,12 @@ function isPublicPage() {
   return false;
 }
 
+/* =========================================================
+   MENU CONDICIONAL
+   Adiciona/remove a classe .has-menu do <body> conforme o
+   estado de login. É isso que faz o menu aparecer no
+   catálogo quando o usuário está logado.
+   ========================================================= */
 function aplicarEstadoMenu(logado) {
   const body = document.body;
   const menu = document.getElementById("menu");
@@ -754,9 +770,14 @@ function aplicarEstadoMenu(logado) {
   }
 }
 
+/* No catálogo (página pública), verifica sessão e:
+   - se logado: aplica .has-menu, carrega contexto + menu
+   - se não logado: mantém o menu escondido
+*/
 async function initPublicPage() {
   const menu = document.getElementById("menu");
 
+  // Se a página nem tem o elemento de menu, não há o que fazer
   if (!menu) {
     aplicarEstadoMenu(false);
     return;
@@ -767,17 +788,23 @@ async function initPublicPage() {
       await db.auth.getSession();
 
     if (!session) {
+      // Sem login: menu escondido e pronto.
       aplicarEstadoMenu(false);
       return;
     }
 
     currentUser = session.user;
 
+    // Com login: aplica .has-menu ANTES de carregar para
+    // o layout já se ajustar.
     aplicarEstadoMenu(true);
 
+    // Carrega contexto (usuário + loja) e menu.
     const contextLoaded = await loadUserContext();
 
     if (!contextLoaded) {
+      // Se o contexto falhar, esconde o menu de novo para
+      // não deixar um menu vazio aparecendo.
       aplicarEstadoMenu(false);
       return;
     }
@@ -805,16 +832,20 @@ document.addEventListener(
     const isLoginPage =
       !!loginForm;
 
+    /* Login: exceção, não executa requireAuth() */
     if (isLoginPage) {
       login();
       return;
     }
 
+    /* Página pública (catálogo): exige login NÃO, mas
+       mostra o menu SE estiver logado. */
     if (isPublicPage()) {
       await initPublicPage();
       return;
     }
 
+    /* Dashboard */
     if (
       document.body.dataset.page ===
       "dashboard"
@@ -823,6 +854,7 @@ document.addEventListener(
       return;
     }
 
+    /* Demais páginas protegidas */
     const authenticated =
       await requireAuth();
 
